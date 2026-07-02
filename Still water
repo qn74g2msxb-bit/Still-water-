@@ -1,0 +1,1191 @@
+import { useState, useEffect, useRef } from "react";
+
+// ————— Still Water v4 — a pocket kit for ADHD + heavy days —————
+// Built on four truths:
+// 1. Sometimes the mind won't calm until the body discharges. (Move)
+// 2. Starting is the wall, not the work. (Unstick, Triage)
+// 3. Feelings follow actions — slowly, in that order. (Ember)
+// 4. Depression lies about your track record and loops the same thought
+//    pretending it's new information. (Proof, Untangle)
+const C = {
+  ink: "#0D1B2A",
+  deep: "#152638",
+  mist: "#A9C3D6",
+  paper: "#E9EEF2",
+  sea: "#7FB8A4",
+  seaDim: "#4E7A6B",
+  amber: "#D8B36A",
+  faint: "rgba(169,195,214,0.35)",
+};
+
+const FONTS = `
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600&family=Karla:wght@400;500;700&display=swap');
+* { box-sizing: border-box; }
+button:focus-visible, input:focus-visible {
+  outline: 2px solid ${C.sea}; outline-offset: 3px;
+}
+@keyframes drift {
+  0%   { opacity: 0; transform: translateY(8px); }
+  10%  { opacity: 1; transform: translateY(0); }
+  75%  { opacity: 1; transform: translateY(-4px); }
+  100% { opacity: 0; transform: translateY(-28px); }
+}
+@keyframes ripple {
+  0%   { transform: scale(0.55); opacity: 0.5; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes tapRipple {
+  0%   { transform: scale(0.2); opacity: 0.7; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; } to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; }
+}
+`;
+
+const TRUTHS = [
+  "Starting is the wall. The work is usually fine.",
+  "A moving body quiets a loud mind.",
+  "Done is a dopamine hit. Perfect is a trap.",
+  "You don't need motivation. You need a first step small enough to be silly.",
+  "One thing. Everything else genuinely can wait.",
+  "Feelings follow actions. Slowly. In that order.",
+  "The loop is a groove, not a message.",
+  "Depression has a terrible memory for your wins. Keep receipts.",
+];
+
+// ————— persistence (graceful — works without storage too) —————
+async function sGet(key, fallback) {
+  try {
+    if (!window.storage) return fallback;
+    const r = await window.storage.get(key);
+    return r && r.value != null ? JSON.parse(r.value) : fallback;
+  } catch { return fallback; }
+}
+async function sSet(key, val) {
+  try {
+    if (!window.storage) return;
+    await window.storage.set(key, JSON.stringify(val));
+  } catch { /* in-memory session still works */ }
+}
+
+// ————— shared bits —————
+function BackLink({ onBack }) {
+  return (
+    <div style={{ marginTop: 34, textAlign: "center" }}>
+      <button onClick={onBack}
+        style={{ background: "none", border: "none", cursor: "pointer",
+          color: C.faint, fontFamily: "Karla", fontSize: 13, letterSpacing: 1 }}>
+        ← back to the pond
+      </button>
+    </div>
+  );
+}
+
+function Pill({ active, children, onClick }) {
+  return (
+    <button onClick={onClick}
+      style={{ padding: "8px 16px", borderRadius: 999, cursor: "pointer",
+        border: `1px solid ${active ? C.sea : C.faint}`,
+        background: active ? "rgba(127,184,164,0.15)" : "transparent",
+        color: active ? C.sea : C.mist, fontFamily: "Karla", fontSize: 13, fontWeight: 500 }}>
+      {children}
+    </button>
+  );
+}
+
+function BigButton({ children, onClick, ghost, warm }) {
+  return (
+    <button onClick={onClick}
+      style={{ padding: "12px 32px", borderRadius: 999, cursor: "pointer", border: "none",
+        background: ghost ? "transparent" : warm ? C.amber : C.sea,
+        color: ghost ? C.mist : C.ink,
+        boxShadow: ghost ? `inset 0 0 0 1px ${C.faint}` : "none",
+        fontFamily: "Karla", fontWeight: 700, fontSize: 15 }}>
+      {children}
+    </button>
+  );
+}
+
+function Input({ value, onChange, onEnter, placeholder, autoFocus }) {
+  return (
+    <input value={value} autoFocus={autoFocus}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => e.key === "Enter" && onEnter && onEnter()}
+      placeholder={placeholder}
+      style={{ width: "100%", padding: "13px 16px", borderRadius: 12,
+        border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.05)",
+        color: C.paper, fontFamily: "Karla", fontSize: 15 }} />
+  );
+}
+
+const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+const H2 = ({ children }) => (
+  <p style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 22, color: C.paper, margin: 0 }}>
+    {children}
+  </p>
+);
+const Sub = ({ children, style }) => (
+  <p style={{ fontFamily: "Karla", fontSize: 13.5, color: C.mist, lineHeight: 1.65,
+    margin: "12px 0 22px", ...style }}>
+    {children}
+  </p>
+);
+
+// ————— BREATHE —————
+const PATTERNS = {
+  box: { name: "Box · 4-4-4-4", hint: "Steady square. Good for racing thoughts.",
+    phases: [
+      { label: "Breathe in", secs: 4, scale: 1 },
+      { label: "Hold", secs: 4, scale: 1 },
+      { label: "Breathe out", secs: 4, scale: 0.55 },
+      { label: "Hold", secs: 4, scale: 0.55 },
+    ] },
+  relax: { name: "4-7-8", hint: "Long exhale. Good for restlessness at night.",
+    phases: [
+      { label: "Breathe in", secs: 4, scale: 1 },
+      { label: "Hold", secs: 7, scale: 1 },
+      { label: "Breathe out", secs: 8, scale: 0.55 },
+    ] },
+  sigh: { name: "Double sigh", hint: "Two quick inhales, long exhale. Fastest physiological reset there is.",
+    phases: [
+      { label: "Inhale", secs: 2, scale: 0.85 },
+      { label: "Inhale again — top up", secs: 1, scale: 1 },
+      { label: "Long sigh out", secs: 6, scale: 0.55 },
+    ] },
+};
+
+function Ripples({ scale, secs }) {
+  return (
+    <div style={{ position: "relative", width: 240, height: 240, margin: "0 auto" }}>
+      {[0, 1, 2].map((i) => (
+        <div key={i} style={{ position: "absolute", inset: 0, borderRadius: "50%",
+          border: `1px solid ${C.faint}`, animation: "ripple 6s linear infinite",
+          animationDelay: `${i * 2}s` }} />
+      ))}
+      <div style={{ position: "absolute", inset: 28, borderRadius: "50%",
+        background: `radial-gradient(circle at 38% 32%, ${C.sea}, ${C.seaDim} 70%)`,
+        boxShadow: "0 0 60px rgba(127,184,164,0.25)",
+        transform: `scale(${scale})`,
+        transition: `transform ${secs}s cubic-bezier(0.4, 0, 0.3, 1)` }} />
+    </div>
+  );
+}
+
+function Breathe({ onBack }) {
+  const [patternKey, setPatternKey] = useState("box");
+  const [running, setRunning] = useState(false);
+  const [phaseIdx, setPhaseIdx] = useState(0);
+  const [cycles, setCycles] = useState(0);
+  const [count, setCount] = useState(0);
+  const pattern = PATTERNS[patternKey];
+  const phase = pattern.phases[phaseIdx];
+
+  useEffect(() => {
+    if (!running) return;
+    setCount(phase.secs);
+    const tick = setInterval(() => setCount((c) => Math.max(0, c - 1)), 1000);
+    const next = setTimeout(() => {
+      const nextIdx = (phaseIdx + 1) % pattern.phases.length;
+      if (nextIdx === 0) setCycles((c) => c + 1);
+      setPhaseIdx(nextIdx);
+    }, phase.secs * 1000);
+    return () => { clearInterval(tick); clearTimeout(next); };
+  }, [running, phaseIdx, patternKey]);
+
+  const reset = (key) => { setPatternKey(key); setRunning(false); setPhaseIdx(0); setCycles(0); };
+
+  return (
+    <div style={{ textAlign: "center" }}>
+      <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginBottom: 26 }}>
+        {Object.entries(PATTERNS).map(([key, p]) => (
+          <Pill key={key} active={key === patternKey} onClick={() => reset(key)}>{p.name}</Pill>
+        ))}
+      </div>
+      <Ripples scale={running ? phase.scale : 0.55} secs={running ? phase.secs : 0.5} />
+      <div style={{ height: 84, marginTop: 24 }}>
+        {running ? (
+          <>
+            <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 25, color: C.paper }}>{phase.label}</div>
+            <div style={{ fontFamily: "Karla", fontSize: 15, color: C.mist, marginTop: 6 }}>{count > 0 ? count : ""}&nbsp;</div>
+            {cycles > 0 && <div style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 1 }}>{cycles} {cycles === 1 ? "cycle" : "cycles"}</div>}
+          </>
+        ) : (
+          <div style={{ fontFamily: "Karla", fontSize: 14, color: C.mist, maxWidth: 280, margin: "0 auto" }}>{pattern.hint}</div>
+        )}
+      </div>
+      <BigButton onClick={() => { setRunning(!running); if (!running) setPhaseIdx(0); }} ghost={running}>
+        {running ? "Pause" : "Begin"}
+      </BigButton>
+      <BackLink onBack={onBack} />
+    </div>
+  );
+}
+
+// ————— RELEASE —————
+function Dump({ onBack }) {
+  const [text, setText] = useState("");
+  const [floating, setFloating] = useState([]);
+  const [released, setReleased] = useState(0);
+  const idRef = useRef(0);
+
+  const release = () => {
+    const t = text.trim();
+    if (!t) return;
+    const id = idRef.current++;
+    setFloating((f) => [...f, { id, t }]);
+    setText("");
+    setReleased((r) => r + 1);
+    setTimeout(() => setFloating((f) => f.filter((x) => x.id !== id)), 5000);
+  };
+
+  return (
+    <div style={{ textAlign: "center" }}>
+      <Sub style={{ maxWidth: 300, margin: "0 auto 20px" }}>
+        Write whatever is looping. Release it and watch it drift — nothing is saved.
+      </Sub>
+      <div style={{ minHeight: 140, marginBottom: 12 }}>
+        {floating.map((f) => (
+          <div key={f.id} style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 17,
+            color: C.paper, padding: "6px 0", animation: "drift 5s ease forwards" }}>{f.t}</div>
+        ))}
+        {floating.length === 0 && (
+          <div style={{ paddingTop: 52, fontFamily: "Karla", fontSize: 13, color: C.faint }}>still water</div>
+        )}
+      </div>
+      <div style={{ display: "flex", gap: 8, maxWidth: 360, margin: "0 auto" }}>
+        <Input value={text} onChange={setText} onEnter={release} placeholder="What's circling?" />
+        <button onClick={release}
+          style={{ padding: "0 22px", borderRadius: 12, border: "none", cursor: "pointer",
+            background: C.sea, color: C.ink, fontFamily: "Karla", fontWeight: 700, fontSize: 14 }}>
+          Release
+        </button>
+      </div>
+      {released > 0 && (
+        <div style={{ marginTop: 18, fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 1 }}>
+          {released} {released === 1 ? "thought" : "thoughts"} released
+        </div>
+      )}
+      <BackLink onBack={onBack} />
+    </div>
+  );
+}
+
+// ————— GROUND —————
+const GROUND_STEPS = [
+  { sense: "you can see", count: 5, verb: "Look around" },
+  { sense: "you can touch", count: 4, verb: "Reach out" },
+  { sense: "you can hear", count: 3, verb: "Listen" },
+  { sense: "you can smell", count: 2, verb: "Breathe in" },
+  { sense: "you can taste", count: 1, verb: "Notice" },
+];
+
+function Ground({ onBack }) {
+  const [stepIdx, setStepIdx] = useState(0);
+  const [tapped, setTapped] = useState(0);
+  const [done, setDone] = useState(false);
+  const step = GROUND_STEPS[stepIdx];
+
+  const tap = () => {
+    const next = tapped + 1;
+    if (next >= step.count) {
+      if (stepIdx + 1 >= GROUND_STEPS.length) { setDone(true); return; }
+      setStepIdx(stepIdx + 1); setTapped(0);
+    } else setTapped(next);
+  };
+
+  if (done) {
+    return (
+      <div style={{ textAlign: "center", paddingTop: 40 }}>
+        <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 28, color: C.paper }}>You're here.</div>
+        <Sub>Five senses, back in the room.</Sub>
+        <BigButton ghost onClick={() => { setStepIdx(0); setTapped(0); setDone(false); }}>Again</BigButton>
+        <BackLink onBack={onBack} />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ textAlign: "center" }}>
+      <p style={{ fontFamily: "Karla", fontSize: 13, color: C.faint, letterSpacing: 2 }}>5 · 4 · 3 · 2 · 1</p>
+      <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 25, color: C.paper, marginTop: 16, lineHeight: 1.4 }}>
+        {step.verb}.<br />
+        <span style={{ color: C.sea }}>{step.count - tapped}</span> {step.count - tapped === 1 ? "thing" : "things"} {step.sense}.
+      </div>
+      <Sub>Tap the stone for each one you notice.</Sub>
+      <button onClick={tap} aria-label="Mark one noticed"
+        style={{ marginTop: 6, width: 126, height: 126, borderRadius: "50%", cursor: "pointer", border: "none",
+          background: `radial-gradient(circle at 38% 32%, ${C.sea}, ${C.seaDim} 75%)`,
+          boxShadow: "0 0 44px rgba(127,184,164,0.25)",
+          color: C.ink, fontFamily: "'Shippori Mincho', serif", fontSize: 32 }}>
+        {step.count - tapped}
+      </button>
+      <div style={{ marginTop: 22, display: "flex", gap: 6, justifyContent: "center" }}>
+        {GROUND_STEPS.map((s, i) => (
+          <div key={i} style={{ width: 22, height: 3, borderRadius: 2,
+            background: i < stepIdx ? C.sea : i === stepIdx ? C.mist : C.faint }} />
+        ))}
+      </div>
+      <BackLink onBack={onBack} />
+    </div>
+  );
+}
+
+// ————— UNSTICK —————
+function Unstick({ onBack }) {
+  const [stage, setStage] = useState("task");
+  const [task, setTask] = useState("");
+  const [tinyStep, setTinyStep] = useState("");
+  const [secs, setSecs] = useState(120);
+  const [running, setRunning] = useState(false);
+  const [extended, setExtended] = useState(0);
+
+  useEffect(() => {
+    if (!running) return;
+    if (secs <= 0) { setRunning(false); setStage("done"); return; }
+    const t = setTimeout(() => setSecs((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [running, secs]);
+
+  const start = () => { setSecs(120); setRunning(true); setStage("timer"); };
+  const extend = () => { setSecs(300); setExtended((e) => e + 1); setRunning(true); setStage("timer"); };
+
+  return (
+    <div style={{ textAlign: "center", maxWidth: 360, margin: "0 auto" }}>
+      {stage === "task" && (
+        <>
+          <H2>What are you avoiding?</H2>
+          <Sub>No judgment. Avoidance is a starting problem, not a character problem.</Sub>
+          <Input value={task} onChange={setTask} autoFocus placeholder="The thing…"
+            onEnter={() => task.trim() && setStage("step")} />
+          <div style={{ marginTop: 18 }}>
+            <BigButton onClick={() => task.trim() && setStage("step")}>Next</BigButton>
+          </div>
+        </>
+      )}
+      {stage === "step" && (
+        <>
+          <H2>What's a first step so small it's almost silly?</H2>
+          <Sub>"Open the file." "Write one sentence." "Find the phone number." Smaller than you think.</Sub>
+          <Input value={tinyStep} onChange={setTinyStep} autoFocus placeholder="The silly-small step…"
+            onEnter={() => tinyStep.trim() && start()} />
+          <div style={{ marginTop: 18 }}>
+            <BigButton onClick={() => tinyStep.trim() && start()}>Give me 2 minutes</BigButton>
+          </div>
+        </>
+      )}
+      {stage === "timer" && (
+        <>
+          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2, textTransform: "uppercase" }}>
+            right now, only this
+          </p>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 23, color: C.paper, margin: "14px 0 6px" }}>
+            {tinyStep}
+          </div>
+          <div style={{ fontFamily: "Karla", fontSize: 12, color: C.faint }}>({task})</div>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 64, color: C.sea, margin: "26px 0 8px",
+            fontVariantNumeric: "tabular-nums" }}>
+            {fmt(secs)}
+          </div>
+          <Sub>When it hits zero, you're allowed to stop. That's the deal.</Sub>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <BigButton ghost onClick={() => setRunning(!running)}>{running ? "Pause" : "Resume"}</BigButton>
+            <BigButton ghost onClick={() => { setRunning(false); setStage("done"); }}>Done early</BigButton>
+          </div>
+        </>
+      )}
+      {stage === "done" && (
+        <>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 28, color: C.paper, marginTop: 30 }}>
+            You started.
+          </div>
+          <Sub>
+            {extended > 0 ? "And you kept going. The wall was never the work." : "That was the whole battle. Momentum is optional — but it's right there if you want it."}
+          </Sub>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <BigButton onClick={extend}>+5 more minutes</BigButton>
+            <BigButton ghost onClick={onBack}>Stop — it counts</BigButton>
+          </div>
+        </>
+      )}
+      <BackLink onBack={onBack} />
+    </div>
+  );
+}
+
+// ————— MOVE —————
+const MOVES = [
+  { text: "Shake out your hands and arms. Properly. Like flicking off water.", secs: 15 },
+  { text: "Push hard against a wall or your desk for the whole count. Really push.", secs: 15 },
+  { text: "Roll your shoulders slowly. Unclench your jaw. Drop your tongue from the roof of your mouth.", secs: 15 },
+  { text: "Stand up and reach as tall as you can. Then fold down loose, arms heavy.", secs: 15 },
+  { text: "March or bounce in place. Doesn't need to look good.", secs: 20 },
+  { text: "Stop. Hands on chest. Three slow breaths and notice the buzz settling.", secs: 15 },
+];
+
+function Move({ onBack }) {
+  const [idx, setIdx] = useState(-1);
+  const [secs, setSecs] = useState(0);
+  const [running, setRunning] = useState(false);
+  const done = idx >= MOVES.length;
+
+  useEffect(() => {
+    if (!running || done || idx < 0) return;
+    if (secs <= 0) {
+      if (idx + 1 >= MOVES.length) { setIdx(MOVES.length); setRunning(false); }
+      else { setIdx(idx + 1); setSecs(MOVES[idx + 1].secs); }
+      return;
+    }
+    const t = setTimeout(() => setSecs((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [running, secs, idx]);
+
+  const start = () => { setIdx(0); setSecs(MOVES[0].secs); setRunning(true); };
+
+  return (
+    <div style={{ textAlign: "center", maxWidth: 360, margin: "0 auto" }}>
+      {idx === -1 && (
+        <>
+          <H2>Sometimes stillness backfires.</H2>
+          <Sub>
+            An ADHD nervous system often needs to <em>discharge</em> before it can settle.
+            Ninety seconds of moving, then the breathing actually works.
+          </Sub>
+          <BigButton onClick={start}>90-second reset</BigButton>
+        </>
+      )}
+      {idx >= 0 && !done && (
+        <>
+          <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 30 }}>
+            {MOVES.map((m, i) => (
+              <div key={i} style={{ width: 26, height: 3, borderRadius: 2,
+                background: i < idx ? C.sea : i === idx ? C.mist : C.faint }} />
+            ))}
+          </div>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 22, color: C.paper,
+            lineHeight: 1.5, minHeight: 100 }}>
+            {MOVES[idx].text}
+          </div>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 52, color: C.sea, margin: "18px 0" }}>
+            {secs}
+          </div>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <BigButton ghost onClick={() => setRunning(!running)}>{running ? "Pause" : "Resume"}</BigButton>
+            <BigButton ghost onClick={() => {
+              if (idx + 1 >= MOVES.length) { setIdx(MOVES.length); setRunning(false); }
+              else { setIdx(idx + 1); setSecs(MOVES[idx + 1].secs); }
+            }}>Skip</BigButton>
+          </div>
+        </>
+      )}
+      {done && (
+        <>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 28, color: C.paper, marginTop: 30 }}>
+            Discharged.
+          </div>
+          <Sub>If the buzz is still there, go again — or take it to the breathing pond now that it can land.</Sub>
+          <BigButton ghost onClick={start}>Once more</BigButton>
+        </>
+      )}
+      <BackLink onBack={onBack} />
+    </div>
+  );
+}
+
+// ————— TRIAGE —————
+function Triage({ onBack }) {
+  const [phase, setPhase] = useState("list");
+  const [items, setItems] = useState([]);
+  const [text, setText] = useState("");
+  const [chosen, setChosen] = useState(null);
+
+  const add = () => {
+    const t = text.trim();
+    if (!t) return;
+    setItems((arr) => [...arr, t]);
+    setText("");
+  };
+
+  return (
+    <div style={{ textAlign: "center", maxWidth: 380, margin: "0 auto" }}>
+      {phase === "list" && (
+        <>
+          <H2>Everything shouting at you — list it.</H2>
+          <Sub>Overwhelm is usually ten tasks trying to go first. Get them out of your head.</Sub>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Input value={text} onChange={setText} onEnter={add} autoFocus placeholder="One thing shouting…" />
+            <button onClick={add}
+              style={{ padding: "0 20px", borderRadius: 12, border: "none", cursor: "pointer",
+                background: C.sea, color: C.ink, fontFamily: "Karla", fontWeight: 700 }}>Add</button>
+          </div>
+          <div style={{ margin: "20px 0", textAlign: "left" }}>
+            {items.map((it, i) => (
+              <div key={i} style={{ fontFamily: "Karla", fontSize: 15, color: C.paper,
+                padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.faint}`, marginBottom: 8 }}>
+                {it}
+              </div>
+            ))}
+          </div>
+          {items.length >= 2 && (
+            <BigButton onClick={() => setPhase("pick")}>Now pick ONE</BigButton>
+          )}
+        </>
+      )}
+      {phase === "pick" && (
+        <>
+          <H2>Which one, if done, quiets the most noise?</H2>
+          <Sub>Not the biggest. Not the "should". The loudest.</Sub>
+          {items.map((it, i) => (
+            <button key={i} onClick={() => { setChosen(it); setPhase("one"); }}
+              style={{ display: "block", width: "100%", textAlign: "left", cursor: "pointer",
+                fontFamily: "Karla", fontSize: 15, color: C.paper, padding: "13px 16px",
+                borderRadius: 10, border: `1px solid ${C.faint}`,
+                background: "rgba(233,238,242,0.04)", marginBottom: 8 }}>
+              {it}
+            </button>
+          ))}
+        </>
+      )}
+      {phase === "one" && (
+        <>
+          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
+            textTransform: "uppercase", marginTop: 20 }}>this. just this.</p>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 30, color: C.paper,
+            margin: "18px 0", lineHeight: 1.4 }}>
+            {chosen}
+          </div>
+          <Sub>The other {items.length - 1} {items.length - 1 === 1 ? "thing waits" : "things wait"}. They are allowed to wait.</Sub>
+          <div style={{ fontFamily: "Karla", fontSize: 13, color: C.amber, marginBottom: 26 }}>
+            Tip: take it to Unstick and give it two minutes.
+          </div>
+          <BigButton ghost onClick={() => { setItems([]); setChosen(null); setPhase("list"); }}>Start over</BigButton>
+        </>
+      )}
+      <BackLink onBack={onBack} />
+    </div>
+  );
+}
+
+// ————— FIDGET —————
+function Fidget({ onBack }) {
+  const [ripples, setRipples] = useState([]);
+  const [taps, setTaps] = useState(0);
+  const idRef = useRef(0);
+
+  const tap = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    const id = idRef.current++;
+    setRipples((r) => [...r, { id, x, y }]);
+    setTaps((t) => t + 1);
+    setTimeout(() => setRipples((r) => r.filter((q) => q.id !== id)), 900);
+  };
+
+  return (
+    <div style={{ textAlign: "center" }}>
+      <Sub>For restless hands on a long call. Tap the water anywhere.</Sub>
+      <div onPointerDown={tap} role="button" aria-label="Tap the water"
+        style={{ position: "relative", height: 340, borderRadius: 20, overflow: "hidden",
+          cursor: "pointer", touchAction: "manipulation",
+          background: `radial-gradient(circle at 50% 30%, #1B3247, ${C.ink})`,
+          border: `1px solid ${C.faint}` }}>
+        {ripples.map((r) => (
+          <div key={r.id} style={{ position: "absolute", left: r.x - 40, top: r.y - 40,
+            width: 80, height: 80, borderRadius: "50%",
+            border: `2px solid ${C.sea}`, animation: "tapRipple 0.9s ease-out forwards" }} />
+        ))}
+        <div style={{ position: "absolute", bottom: 14, width: "100%",
+          fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 1 }}>
+          {taps > 0 ? `${taps} ripples` : ""}
+        </div>
+      </div>
+      <BackLink onBack={onBack} />
+    </div>
+  );
+}
+
+// ————— FOCUS —————
+function Focus({ onBack }) {
+  const [stage, setStage] = useState("setup");
+  const [task, setTask] = useState("");
+  const [total, setTotal] = useState(15 * 60);
+  const [secs, setSecs] = useState(15 * 60);
+  const [running, setRunning] = useState(false);
+  const [drifts, setDrifts] = useState(0);
+
+  useEffect(() => {
+    if (!running || stage !== "run") return;
+    if (secs <= 0) { setRunning(false); setStage("done"); return; }
+    const t = setTimeout(() => setSecs((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [running, secs, stage]);
+
+  const start = (mins) => {
+    setTotal(mins * 60); setSecs(mins * 60); setRunning(true); setStage("run");
+  };
+  const waterLevel = stage === "run" ? secs / total : 1;
+
+  return (
+    <div style={{ textAlign: "center", maxWidth: 360, margin: "0 auto" }}>
+      {stage === "setup" && (
+        <>
+          <H2>Make time visible.</H2>
+          <Sub>
+            ADHD brains don't feel time passing — so we'll watch it drain instead.
+            Drifting off is expected. There's a no-shame button for coming back.
+          </Sub>
+          <Input value={task} onChange={setTask} autoFocus placeholder="What are you on? (optional)" />
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 18 }}>
+            {[10, 15, 25].map((m) => (
+              <Pill key={m} onClick={() => start(m)}>{m} min</Pill>
+            ))}
+          </div>
+        </>
+      )}
+      {stage === "run" && (
+        <>
+          {task.trim() && (
+            <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 20, color: C.paper, marginBottom: 4 }}>
+              {task}
+            </div>
+          )}
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 58, color: C.sea,
+            margin: "10px 0 18px", fontVariantNumeric: "tabular-nums" }}>
+            {fmt(secs)}
+          </div>
+          <div aria-hidden="true" style={{ position: "relative", height: 160, borderRadius: 16,
+            overflow: "hidden", border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.03)" }}>
+            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0,
+              height: `${waterLevel * 100}%`,
+              background: `linear-gradient(180deg, rgba(127,184,164,0.45), rgba(127,184,164,0.15))`,
+              transition: "height 1s linear" }} />
+          </div>
+          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, margin: "10px 0 18px", letterSpacing: 1 }}>
+            the pond drains as the sprint runs
+          </p>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+            <BigButton ghost onClick={() => setDrifts((d) => d + 1)}>I drifted — I'm back</BigButton>
+            <BigButton ghost onClick={() => setRunning(!running)}>{running ? "Pause" : "Resume"}</BigButton>
+          </div>
+          {drifts > 0 && (
+            <div style={{ marginTop: 14, fontFamily: "Karla", fontSize: 12, color: C.faint }}>
+              Came back {drifts} {drifts === 1 ? "time" : "times"}. Coming back IS the skill.
+            </div>
+          )}
+        </>
+      )}
+      {stage === "done" && (
+        <>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 28, color: C.paper, marginTop: 30 }}>
+            Sprint done.
+          </div>
+          <Sub>
+            {drifts === 0
+              ? "Clean run. Stand up, shake out, drink water before the next one."
+              : `You drifted ${drifts} ${drifts === 1 ? "time" : "times"} and came back every time. That's the whole skill — nobody focuses in a straight line.`}
+          </Sub>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <BigButton onClick={() => { setDrifts(0); setStage("setup"); }}>Another sprint</BigButton>
+            <BigButton ghost onClick={onBack}>Enough</BigButton>
+          </div>
+        </>
+      )}
+      <BackLink onBack={onBack} />
+    </div>
+  );
+}
+
+// ————— EMBER v2 — heavy days, smallest possible moves —————
+// Written by someone who knows "take a shower" is sometimes a mountain.
+// Every ember has a smaller fallback, because the floor should have a floor.
+const EMBER_POOL = [
+  { text: "Change position. Sit up, or move to a different spot.",
+    smaller: "Too big? Just turn your head and look at something else for ten seconds.",
+    why: "A body that moved an inch is easier to move a foot." },
+  { text: "Drink some water. Slowly is fine.",
+    smaller: "Too big? Just put a glass of water within reach for later.",
+    why: "Heavy days dehydrate quietly, and it makes everything heavier." },
+  { text: "Open a window, or stand where the light is, for a moment.",
+    smaller: "Too big? Open the curtains from where you are.",
+    why: "Light and air reach places words can't." },
+  { text: "Put on one song. Not a productive one — one you actually like.",
+    smaller: "Too big? Hum three notes of anything.",
+    why: "Music can move a mood a few degrees when nothing else will." },
+  { text: "Send one message to one person. Even just \"hey\". No explanation needed.",
+    smaller: "Too big? Just open the chat and look at their name. That's a start.",
+    why: "Heaviness lies and says you're alone. One thread out disproves it." },
+  { text: "Wash your face with cold water.",
+    smaller: "Too big? Press a cold can or bottle against your cheek.",
+    why: "Cold on the face flips an ancient calming reflex. It's biology, not willpower." },
+  { text: "Step outside the door. You don't have to go anywhere.",
+    smaller: "Too big? Stand at the open door and breathe the outside air once.",
+    why: "The room you've been heavy in holds the heaviness. Any other air helps." },
+  { text: "Eat something small. Anything counts today.",
+    smaller: "Too big? Put one snack next to you for when you're ready.",
+    why: "An unfed brain reads everything as worse than it is." },
+  { text: "Put one single thing back where it belongs.",
+    smaller: "Too big? Just pick it up and put it down again. Contact counts.",
+    why: "One square meter of order pushes back against the fog." },
+];
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function Ember({ onBack }) {
+  const [embers, setEmbers] = useState([]);
+  const [idx, setIdx] = useState(-1);
+  const [litCount, setLitCount] = useState(0);
+  const [allTime, setAllTime] = useState(null);
+  const [showSmaller, setShowSmaller] = useState(false);
+  const done = embers.length > 0 && idx >= embers.length;
+
+  useEffect(() => { sGet("sw-embers-total", 0).then(setAllTime); }, []);
+
+  const begin = () => {
+    setEmbers(shuffle(EMBER_POOL).slice(0, 5));
+    setIdx(0); setLitCount(0); setShowSmaller(false);
+  };
+
+  const next = (didIt) => {
+    if (didIt) {
+      setLitCount((c) => c + 1);
+      setAllTime((t) => {
+        const nt = (t || 0) + 1;
+        sSet("sw-embers-total", nt);
+        return nt;
+      });
+    }
+    setShowSmaller(false);
+    setIdx((i) => i + 1);
+  };
+
+  return (
+    <div style={{ textAlign: "center", maxWidth: 360, margin: "0 auto" }}>
+      {idx === -1 && (
+        <>
+          <H2>Heavy days don't need big moves.</H2>
+          <Sub>
+            When everything is grey, motivation won't come first — a tiny action comes first,
+            and the feeling follows it, slowly. Five embers, drawn fresh each time.
+            Every one has an even smaller version. Skipping is allowed. One is enough.
+          </Sub>
+          {allTime > 0 && (
+            <p style={{ fontFamily: "Karla", fontSize: 12.5, color: C.amber, marginBottom: 20 }}>
+              You've lit {allTime} {allTime === 1 ? "ember" : "embers"} all-time. Every one was real.
+            </p>
+          )}
+          <BigButton warm onClick={begin}>Light the first one</BigButton>
+        </>
+      )}
+
+      {idx >= 0 && !done && (
+        <>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 28 }}>
+            {embers.map((e, i) => (
+              <div key={i} aria-hidden="true" style={{ width: 10, height: 10, borderRadius: "50%",
+                background: i < idx ? C.amber : "transparent",
+                border: `1px solid ${i <= idx ? C.amber : C.faint}`,
+                boxShadow: i < idx ? "0 0 10px rgba(216,179,106,0.5)" : "none" }} />
+            ))}
+          </div>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 22, color: C.paper,
+            lineHeight: 1.5, minHeight: 80 }}>
+            {embers[idx].text}
+          </div>
+          <p style={{ fontFamily: "Karla", fontSize: 13, color: C.mist, margin: "12px 0 8px", fontStyle: "italic" }}>
+            {embers[idx].why}
+          </p>
+          {showSmaller ? (
+            <p style={{ fontFamily: "Karla", fontSize: 13.5, color: C.amber, margin: "10px 0 20px",
+              animation: "fadeIn 0.4s ease" }}>
+              {embers[idx].smaller}
+            </p>
+          ) : (
+            <button onClick={() => setShowSmaller(true)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: C.faint,
+                fontFamily: "Karla", fontSize: 12.5, textDecoration: "underline",
+                textUnderlineOffset: 3, margin: "6px 0 18px" }}>
+              too big right now?
+            </button>
+          )}
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <BigButton warm onClick={() => next(true)}>Did it</BigButton>
+            <BigButton ghost onClick={() => next(false)}>Skip — no guilt</BigButton>
+          </div>
+        </>
+      )}
+
+      {done && (
+        <>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", margin: "20px 0" }}>
+            {Array.from({ length: litCount }).map((_, i) => (
+              <div key={i} style={{ width: 10, height: 10, borderRadius: "50%",
+                background: C.amber, boxShadow: "0 0 12px rgba(216,179,106,0.6)" }} />
+            ))}
+          </div>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 26, color: C.paper }}>
+            {litCount > 0 ? `${litCount} ${litCount === 1 ? "ember" : "embers"} lit.` : "You showed up anyway."}
+          </div>
+          <Sub>
+            {litCount > 0
+              ? "That's real. On a heavy day, small things cost more and count double."
+              : "Reading through them on a day like this is not nothing. Come back later — they'll still be here."}
+          </Sub>
+          {litCount > 0 && (
+            <p style={{ fontFamily: "Karla", fontSize: 13, color: C.amber, marginBottom: 8 }}>
+              Worth keeping? Drop one in Proof — future you will need the receipt.
+            </p>
+          )}
+          <p style={{ fontFamily: "Karla", fontSize: 12.5, color: C.faint, margin: "14px 0 24px", lineHeight: 1.6 }}>
+            One honest note: if the heaviness has been sitting on you for weeks, it deserves more
+            than a pond — tell a doctor or someone who loves you. This is for right now, not instead of that.
+          </p>
+          <BigButton ghost onClick={begin}>Five fresh embers</BigButton>
+        </>
+      )}
+      <BackLink onBack={onBack} />
+    </div>
+  );
+}
+
+// ————— PROOF — evidence jar against the lying memory —————
+function Proof({ onBack }) {
+  const [entries, setEntries] = useState(null); // null = loading
+  const [text, setText] = useState("");
+  const [shown, setShown] = useState(null);
+  const [view, setView] = useState("main"); // main | all
+
+  useEffect(() => { sGet("sw-proof", []).then(setEntries); }, []);
+
+  const add = () => {
+    const t = text.trim();
+    if (!t || !entries) return;
+    const entry = { t, d: new Date().toISOString().slice(0, 10) };
+    const next = [...entries, entry];
+    setEntries(next);
+    sSet("sw-proof", next);
+    setText("");
+  };
+
+  const drawOne = () => {
+    if (!entries || entries.length === 0) return;
+    let pick = entries[Math.floor(Math.random() * entries.length)];
+    if (entries.length > 1 && shown && pick.t === shown.t) {
+      pick = entries[(entries.indexOf(pick) + 1) % entries.length];
+    }
+    setShown(pick);
+  };
+
+  if (entries === null) {
+    return <div style={{ textAlign: "center", fontFamily: "Karla", color: C.faint, paddingTop: 40 }}>opening the jar…</div>;
+  }
+
+  return (
+    <div style={{ textAlign: "center", maxWidth: 380, margin: "0 auto" }}>
+      {view === "main" && (
+        <>
+          <H2>Keep receipts on yourself.</H2>
+          <Sub>
+            Depression has a selective memory: it files away every stumble and deletes every win.
+            This jar is the counter-archive. Drop in small true things — done, survived, handled,
+            not ruined. On grey days, draw one out. Past you doesn't lie.
+          </Sub>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Input value={text} onChange={setText} onEnter={add}
+              placeholder="One small true thing from today…" />
+            <button onClick={add}
+              style={{ padding: "0 20px", borderRadius: 12, border: "none", cursor: "pointer",
+                background: C.amber, color: C.ink, fontFamily: "Karla", fontWeight: 700 }}>
+              Drop in
+            </button>
+          </div>
+
+          {entries.length > 0 && (
+            <div style={{ marginTop: 30 }}>
+              <div style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 1, marginBottom: 14 }}>
+                {entries.length} {entries.length === 1 ? "receipt" : "receipts"} in the jar
+              </div>
+              {shown && (
+                <div style={{ padding: "20px 22px", borderRadius: 16, marginBottom: 16,
+                  border: `1px solid rgba(216,179,106,0.4)`, background: "rgba(216,179,106,0.07)",
+                  animation: "fadeIn 0.5s ease" }}>
+                  <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 19,
+                    color: C.paper, lineHeight: 1.5 }}>
+                    {shown.t}
+                  </div>
+                  <div style={{ fontFamily: "Karla", fontSize: 11.5, color: C.amber, marginTop: 10, letterSpacing: 1 }}>
+                    — past you, {shown.d}
+                  </div>
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                <BigButton warm onClick={drawOne}>{shown ? "Draw another" : "Draw one out"}</BigButton>
+                <BigButton ghost onClick={() => setView("all")}>See all</BigButton>
+              </div>
+            </div>
+          )}
+          {entries.length === 0 && (
+            <p style={{ fontFamily: "Karla", fontSize: 13, color: C.faint, marginTop: 26 }}>
+              The jar is empty — which only means the archive starts today.
+              "Got out of bed on a bad day" is a valid receipt.
+            </p>
+          )}
+        </>
+      )}
+
+      {view === "all" && (
+        <>
+          <H2>The whole archive.</H2>
+          <Sub>Read it like evidence, because it is.</Sub>
+          <div style={{ textAlign: "left", maxHeight: 380, overflowY: "auto", paddingRight: 4 }}>
+            {[...entries].reverse().map((e, i) => (
+              <div key={i} style={{ padding: "12px 16px", borderRadius: 12, marginBottom: 8,
+                border: `1px solid ${C.faint}` }}>
+                <div style={{ fontFamily: "Karla", fontSize: 14.5, color: C.paper, lineHeight: 1.5 }}>{e.t}</div>
+                <div style={{ fontFamily: "Karla", fontSize: 11, color: C.faint, marginTop: 5 }}>{e.d}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 18 }}>
+            <BigButton ghost onClick={() => setView("main")}>Back to the jar</BigButton>
+          </div>
+        </>
+      )}
+      <BackLink onBack={onBack} />
+    </div>
+  );
+}
+
+// ————— UNTANGLE — rumination interrupt —————
+const ANCHOR_PROMPTS = [
+  "What do your feet feel right now?",
+  "What temperature is the air on your skin?",
+  "What's the furthest sound you can hear?",
+  "Where is your body touching the chair or floor?",
+  "Find one thing in the room with a texture. Look at it properly.",
+  "What can you smell, even faintly?",
+];
+
+function Untangle({ onBack }) {
+  const [stage, setStage] = useState("loop"); // loop | count | park | anchor | done
+  const [loop, setLoop] = useState("");
+  const [anchorIdx, setAnchorIdx] = useState(0);
+  const [anchorSecs, setAnchorSecs] = useState(0);
+
+  useEffect(() => {
+    if (stage !== "anchor") return;
+    if (anchorSecs <= 0) {
+      if (anchorIdx + 1 >= 4) { setStage("done"); return; }
+      setAnchorIdx((i) => i + 1);
+      setAnchorSecs(10);
+      return;
+    }
+    const t = setTimeout(() => setAnchorSecs((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [stage, anchorSecs, anchorIdx]);
+
+  const startAnchor = () => {
+    setAnchorIdx(0); setAnchorSecs(10); setStage("anchor");
+  };
+
+  return (
+    <div style={{ textAlign: "center", maxWidth: 370, margin: "0 auto" }}>
+      {stage === "loop" && (
+        <>
+          <H2>Same thought again?</H2>
+          <Sub>
+            Rumination feels like thinking, but it's a groove, not a message.
+            If it were going to produce an answer, it would have by now.
+            Write the loop in one line.
+          </Sub>
+          <Input value={loop} onChange={setLoop} autoFocus placeholder="The thought that keeps coming back…"
+            onEnter={() => loop.trim() && setStage("count")} />
+          <div style={{ marginTop: 18 }}>
+            <BigButton onClick={() => loop.trim() && setStage("count")}>Name it</BigButton>
+          </div>
+        </>
+      )}
+
+      {stage === "count" && (
+        <>
+          <H2>How many times has this exact thought visited today?</H2>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 24, flexWrap: "wrap" }}>
+            {["First time", "A few", "Dozens", "Lost count"].map((o) => (
+              <Pill key={o} onClick={() => setStage("park")}>{o}</Pill>
+            ))}
+          </div>
+          <Sub style={{ marginTop: 24 }}>
+            Be honest — no one's watching.
+          </Sub>
+        </>
+      )}
+
+      {stage === "park" && (
+        <>
+          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
+            textTransform: "uppercase" }}>the loop</p>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 21, color: C.paper,
+            margin: "14px 0 8px", lineHeight: 1.5, opacity: 0.75, textDecorationLine: "none" }}>
+            "{loop}"
+          </div>
+          <Sub>
+            Here's the trick that actually works: don't fight it, <em>schedule</em> it.
+            Give it an appointment — tonight, 15 minutes, pen and paper, deliberately.
+            A parked thought loses its emergency status. When it knocks again before then,
+            the answer is the same: <em>"You have an appointment. Not now."</em>
+          </Sub>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <BigButton onClick={startAnchor}>Park it — and land me back here</BigButton>
+          </div>
+        </>
+      )}
+
+      {stage === "anchor" && (
+        <>
+          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
+            textTransform: "uppercase", marginBottom: 24 }}>coming back to the room</p>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 23, color: C.paper,
+            lineHeight: 1.5, minHeight: 80 }}>
+            {ANCHOR_PROMPTS[anchorIdx % ANCHOR_PROMPTS.length]}
+          </div>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 48, color: C.sea, margin: "20px 0" }}>
+            {anchorSecs}
+          </div>
+          <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} style={{ width: 22, height: 3, borderRadius: 2,
+                background: i < anchorIdx ? C.sea : i === anchorIdx ? C.mist : C.faint }} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {stage === "done" && (
+        <>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 28, color: C.paper, marginTop: 30 }}>
+            Parked.
+          </div>
+          <Sub>
+            The loop will knock again — that's what grooves do. Same answer every time:
+            it has an appointment, and you're busy being in the room.
+          </Sub>
+          <BigButton ghost onClick={() => { setLoop(""); setStage("loop"); }}>Another loop</BigButton>
+        </>
+      )}
+      <BackLink onBack={onBack} />
+    </div>
+  );
+}
+
+// ————— HOME —————
+const SECTIONS = [
+  {
+    label: "When the mind is loud",
+    modes: [
+      { key: "breathe", title: "Breathe", desc: "Ripples pace you down", jp: "息" },
+      { key: "dump", title: "Release", desc: "Drop looping thoughts in the water", jp: "放" },
+      { key: "ground", title: "Ground", desc: "5-4-3-2-1 senses, back to the room", jp: "地" },
+    ],
+  },
+  {
+    label: "When the body is loud",
+    modes: [
+      { key: "move", title: "Move", desc: "90-second discharge before stillness", jp: "体" },
+      { key: "fidget", title: "Fidget", desc: "A pond for restless hands", jp: "石" },
+    ],
+  },
+  {
+    label: "When the work won't start",
+    modes: [
+      { key: "triage", title: "Triage", desc: "Ten shouting tasks → one", jp: "選" },
+      { key: "unstick", title: "Unstick", desc: "A silly-small step + 2 minutes", jp: "始" },
+      { key: "focus", title: "Focus", desc: "A sprint you can see draining", jp: "集" },
+    ],
+  },
+  {
+    label: "When everything is heavy",
+    modes: [
+      { key: "ember", title: "Ember", desc: "Five tiny lights, each with a smaller version", jp: "灯" },
+      { key: "untangle", title: "Untangle", desc: "Park the looping thought", jp: "解" },
+      { key: "proof", title: "Proof", desc: "A jar of receipts your memory can't delete", jp: "証" },
+    ],
+  },
+];
+
+export default function StillWater() {
+  const [mode, setMode] = useState(null);
+  const [truth] = useState(() => TRUTHS[Math.floor(Math.random() * TRUTHS.length)]);
+
+  return (
+    <div style={{ minHeight: "100vh",
+      background: `linear-gradient(175deg, ${C.ink} 0%, ${C.deep} 60%, #1B3247 100%)`,
+      padding: "40px 20px 60px" }}>
+      <style>{FONTS}</style>
+      <div style={{ maxWidth: 440, margin: "0 auto" }}>
+        <header style={{ textAlign: "center", marginBottom: mode ? 28 : 34 }}>
+          <h1 onClick={() => setMode(null)}
+            style={{ fontFamily: "'Shippori Mincho', serif", fontWeight: 600,
+              fontSize: mode ? 22 : 32, color: C.paper, margin: 0, letterSpacing: 1,
+              cursor: mode ? "pointer" : "default" }}>
+            Still Water
+          </h1>
+          {!mode && (
+            <p style={{ fontFamily: "Karla", fontSize: 13.5, color: C.mist, marginTop: 10,
+              fontStyle: "italic" }}>
+              “{truth}”
+            </p>
+          )}
+        </header>
+
+        {!mode && SECTIONS.map((sec) => (
+          <div key={sec.label} style={{ marginBottom: 26 }}>
+            <div style={{ fontFamily: "Karla", fontSize: 11.5, color: C.faint,
+              letterSpacing: 2, textTransform: "uppercase", marginBottom: 10, paddingLeft: 4 }}>
+              {sec.label}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {sec.modes.map((m) => (
+                <button key={m.key} onClick={() => setMode(m.key)}
+                  style={{ display: "flex", alignItems: "center", gap: 16, textAlign: "left",
+                    padding: "16px 20px", borderRadius: 16, cursor: "pointer",
+                    border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.04)" }}>
+                  <span style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 27,
+                    color: sec.label === "When everything is heavy" ? C.amber : C.sea,
+                    lineHeight: 1 }}>{m.jp}</span>
+                  <span>
+                    <span style={{ display: "block", fontFamily: "'Shippori Mincho', serif",
+                      fontSize: 18, color: C.paper }}>{m.title}</span>
+                    <span style={{ display: "block", fontFamily: "Karla", fontSize: 13,
+                      color: C.mist, marginTop: 3 }}>{m.desc}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {mode === "breathe" && <Breathe onBack={() => setMode(null)} />}
+        {mode === "dump" && <Dump onBack={() => setMode(null)} />}
+        {mode === "ground" && <Ground onBack={() => setMode(null)} />}
+        {mode === "unstick" && <Unstick onBack={() => setMode(null)} />}
+        {mode === "move" && <Move onBack={() => setMode(null)} />}
+        {mode === "triage" && <Triage onBack={() => setMode(null)} />}
+        {mode === "fidget" && <Fidget onBack={() => setMode(null)} />}
+        {mode === "focus" && <Focus onBack={() => setMode(null)} />}
+        {mode === "ember" && <Ember onBack={() => setMode(null)} />}
+        {mode === "untangle" && <Untangle onBack={() => setMode(null)} />}
+        {mode === "proof" && <Proof onBack={() => setMode(null)} />}
+      </div>
+    </div>
+  );
+}
