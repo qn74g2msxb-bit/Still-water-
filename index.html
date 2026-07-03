@@ -1,5 +1,32 @@
-import { useState, useEffect, useRef } from "react";
-import * as Tone from "tone";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Still Water</title>
+  <meta name="description" content="A pocket pond for loud minds and heavy days." />
+  <meta name="theme-color" content="#0D1B2A" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./icon-192.png" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Still Water" />
+  <style>
+    html, body { margin: 0; padding: 0; background: #0D1B2A; }
+    #loading { color: #A9C3D6; font-family: Georgia, serif; text-align: center;
+      padding-top: 40vh; font-size: 16px; letter-spacing: 2px; }
+  </style>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/tone@14.8.49/build/Tone.js"></script>
+</head>
+<body>
+  <div id="root"><div id="loading">still water…</div></div>
+  <script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
 
 // ————— Still Water v5 — a pocket kit for ADHD + heavy days —————
 // Truths this app is built on:
@@ -71,16 +98,12 @@ const localDate = (offsetDays = 0) => {
 };
 async function sGet(key, fallback) {
   try {
-    if (!window.storage) return fallback;
-    const r = await window.storage.get(key);
-    return r && r.value != null ? JSON.parse(r.value) : fallback;
+    const v = localStorage.getItem(key);
+    return v != null ? JSON.parse(v) : fallback;
   } catch { return fallback; }
 }
 async function sSet(key, val) {
-  try {
-    if (!window.storage) return;
-    await window.storage.set(key, JSON.stringify(val));
-  } catch { /* session still works */ }
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* private mode etc. */ }
 }
 
 // ————— shared bits —————
@@ -1856,21 +1879,32 @@ const SECTIONS = [
   },
   {
     label: "When everything is heavy",
+    color: C.amber,
     modes: [
       { key: "ember", title: "Ember", desc: "Five tiny lights, each with a smaller version", jp: "灯" },
       { key: "untangle", title: "Untangle", desc: "Park the looping thought", jp: "解" },
+      { key: "kind", title: "Kind voice", desc: "Answer the critic like you'd answer a friend", jp: "優" },
       { key: "proof", title: "Proof", desc: "A jar of receipts your memory can't delete", jp: "証" },
     ],
   },
   {
-    label: "Closing the day",
+    label: "The day's bookends",
+    color: C.storm,
     modes: [
+      { key: "morning", title: "Morning", desc: "Surface slowly — breath, anchor, one ember", jp: "朝" },
       { key: "night", title: "Night", desc: "Empty the loops, set tomorrow's one thing", jp: "夜" },
+    ],
+  },
+  {
+    label: "The pond remembers",
+    color: C.mist,
+    modes: [
+      { key: "pond", title: "Pond", desc: "Everything the water has kept for you", jp: "池" },
     ],
   },
 ];
 
-export default function StillWater() {
+function StillWater() {
   const [mode, setMode] = useState(null);
   const [breathePattern, setBreathePattern] = useState(null);
   const [truth] = useState(() => TRUTHS[Math.floor(Math.random() * TRUTHS.length)]);
@@ -1933,8 +1967,7 @@ export default function StillWater() {
                         padding: "16px 20px", borderRadius: 16, cursor: "pointer",
                         border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.04)" }}>
                       <span style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 27,
-                        color: sec.label === "When everything is heavy" ? C.amber
-                          : sec.label === "Closing the day" ? C.storm : C.sea,
+                        color: sec.color || C.sea,
                         lineHeight: 1 }}>{m.jp}</span>
                       <span>
                         <span style={{ display: "block", fontFamily: "'Shippori Mincho', serif",
@@ -1964,7 +1997,25 @@ export default function StillWater() {
         {mode === "sound" && <Sound onBack={() => setMode(null)} />}
         {mode === "spiral" && <Spiral onBack={() => setMode(null)} go={go} />}
         {mode === "night" && <Night onBack={() => setMode(null)} go={go} />}
+        {mode === "kind" && <KindVoice onBack={() => setMode(null)} />}
+        {mode === "morning" && <Morning onBack={() => setMode(null)} />}
+        {mode === "pond" && <Pond onBack={() => setMode(null)} />}
       </div>
     </div>
   );
 }
+
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<StillWater />);
+
+  </script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
