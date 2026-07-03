@@ -60,6 +60,8 @@ const TRUTHS = [
   "Depression has a terrible memory for your wins. Keep receipts.",
   "Mood is weather, not climate.",
   "A day that gets an ending doesn't leak into the night.",
+  "The critic is loud, not right.",
+  "Talk to yourself like someone you love came to you with the same problem.",
 ];
 
 // ————— dates & persistence (graceful — works without storage too) —————
@@ -885,6 +887,13 @@ function Proof({ onBack }) {
     setText("");
   };
 
+  const removeAt = (origIdx) => {
+    const next = entries.filter((_, i) => i !== origIdx);
+    setEntries(next);
+    sSet("sw-proof", next);
+    if (shown && entries[origIdx] && shown.t === entries[origIdx].t) setShown(null);
+  };
+
   const drawOne = () => {
     if (!entries || entries.length === 0) return;
     let pick = entries[Math.floor(Math.random() * entries.length)];
@@ -956,9 +965,14 @@ function Proof({ onBack }) {
           <div style={{ textAlign: "left", maxHeight: 380, overflowY: "auto", paddingRight: 4 }}>
             {[...entries].reverse().map((e, i) => (
               <div key={i} style={{ padding: "12px 16px", borderRadius: 12, marginBottom: 8,
-                border: `1px solid ${C.faint}` }}>
-                <div style={{ fontFamily: "Karla", fontSize: 14.5, color: C.paper, lineHeight: 1.5 }}>{e.t}</div>
+                border: `1px solid ${C.faint}`, position: "relative" }}>
+                <div style={{ fontFamily: "Karla", fontSize: 14.5, color: C.paper, lineHeight: 1.5, paddingRight: 24 }}>{e.t}</div>
                 <div style={{ fontFamily: "Karla", fontSize: 11, color: C.faint, marginTop: 5 }}>{e.d}</div>
+                <button onClick={() => removeAt(entries.length - 1 - i)} aria-label="Remove receipt"
+                  style={{ position: "absolute", top: 8, right: 10, background: "none", border: "none",
+                    cursor: "pointer", color: C.faint, fontFamily: "Karla", fontSize: 14 }}>
+                  ×
+                </button>
               </div>
             ))}
           </div>
@@ -1389,6 +1403,320 @@ function Night({ onBack, go }) {
             <BigButton onClick={() => go("breathe", "relax")}>4-7-8 me down</BigButton>
             <BigButton ghost onClick={onBack}>Good night</BigButton>
           </div>
+        </>
+      )}
+      <BackLink onBack={onBack} />
+    </div>
+  );
+}
+
+// ————— KIND VOICE — the second opinion —————
+function KindVoice({ onBack }) {
+  const [stage, setStage] = useState("critic"); // critic | rewrite | side
+  const [critic, setCritic] = useState("");
+  const [kind, setKind] = useState("");
+  const [kept, setKept] = useState(false);
+
+  const keep = async () => {
+    if (kept || !kind.trim()) return;
+    const entries = await sGet("sw-proof", []);
+    await sSet("sw-proof", [...entries, { t: `Answered the critic: "${kind.trim()}"`, d: localDate() }]);
+    setKept(true);
+  };
+
+  return (
+    <div style={{ textAlign: "center", maxWidth: 370, margin: "0 auto" }}>
+      {stage === "critic" && (
+        <>
+          <H2>What's the critic saying?</H2>
+          <Sub>
+            Word for word. Its favorite line, in its actual tone. Getting it out of
+            your head and onto the screen is the first move — inside, it sounds like truth;
+            outside, it sounds like what it is.
+          </Sub>
+          <Input value={critic} onChange={setCritic} autoFocus placeholder="The harsh line, verbatim…"
+            onEnter={() => critic.trim() && setStage("rewrite")} />
+          <div style={{ marginTop: 18 }}>
+            <BigButton onClick={() => critic.trim() && setStage("rewrite")}>It's out</BigButton>
+          </div>
+        </>
+      )}
+
+      {stage === "rewrite" && (
+        <>
+          <div style={{ fontFamily: "Karla", fontSize: 14, color: C.mist, opacity: 0.6,
+            fontStyle: "italic", marginBottom: 22 }}>
+            "{critic}"
+          </div>
+          <H2>Now — someone you love comes to you with this exact situation.</H2>
+          <Sub>
+            Same facts. Same failure, if it even is one. What do you actually say to them?
+            Write it down. You already know how to do this voice — you use it on everyone but yourself.
+          </Sub>
+          <Input value={kind} onChange={setKind} autoFocus placeholder="What you'd tell them…"
+            onEnter={() => kind.trim() && setStage("side")} />
+          <div style={{ marginTop: 18 }}>
+            <BigButton onClick={() => kind.trim() && setStage("side")}>Say it</BigButton>
+          </div>
+        </>
+      )}
+
+      {stage === "side" && (
+        <>
+          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
+            textTransform: "uppercase", marginBottom: 16 }}>same facts · two voices</p>
+          <div style={{ fontFamily: "Karla", fontSize: 14, color: C.mist, opacity: 0.45,
+            textDecoration: "line-through", textDecorationColor: "rgba(169,195,214,0.5)",
+            lineHeight: 1.5, marginBottom: 14 }}>
+            "{critic}"
+          </div>
+          <div style={{ padding: "18px 20px", borderRadius: 16,
+            border: `1px solid rgba(216,179,106,0.45)`, background: "rgba(216,179,106,0.07)",
+            animation: "fadeIn 0.5s ease" }}>
+            <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 19, color: C.paper, lineHeight: 1.5 }}>
+              "{kind}"
+            </div>
+          </div>
+          <Sub style={{ marginTop: 16 }}>
+            Harshness is not honesty. The second voice knows the same facts — it just
+            doesn't get as much airtime. Give it more.
+          </Sub>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+            <BigButton warm onClick={keep}>{kept ? "In the jar ✓" : "Keep it in Proof"}</BigButton>
+            <BigButton ghost onClick={() => { setCritic(""); setKind(""); setKept(false); setStage("critic"); }}>
+              Another line
+            </BigButton>
+          </div>
+        </>
+      )}
+      <BackLink onBack={onBack} />
+    </div>
+  );
+}
+
+// ————— MORNING — surfacing —————
+function Morning({ onBack }) {
+  const [stage, setStage] = useState("breath"); // breath | one | receipt | ember | done
+  const [secs, setSecs] = useState(18);
+  const [one, setOne] = useState(null);
+  const [text, setText] = useState("");
+  const [receipt, setReceipt] = useState(null);
+  const [ember] = useState(() => EMBER_POOL[Math.floor(Math.random() * EMBER_POOL.length)]);
+  const [showSmaller, setShowSmaller] = useState(false);
+
+  useEffect(() => {
+    sGet("sw-tomorrow", null).then((v) => { if (v && v.d === localDate()) setOne(v.t); });
+    sGet("sw-proof", []).then((es) => {
+      if (es.length) setReceipt(es[Math.floor(Math.random() * es.length)]);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (stage !== "breath") return;
+    if (secs <= 0) { setStage("one"); return; }
+    const t = setTimeout(() => setSecs((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [stage, secs]);
+
+  useEffect(() => {
+    if (stage === "receipt" && !receipt) setStage("ember");
+  }, [stage, receipt]);
+
+  const setToday = () => {
+    const t = text.trim();
+    if (!t) return;
+    sSet("sw-tomorrow", { d: localDate(), t });
+    setOne(t);
+    setStage("receipt");
+  };
+
+  const litOne = async () => {
+    const total = await sGet("sw-embers-total", 0);
+    await sSet("sw-embers-total", total + 1);
+    setStage("done");
+  };
+
+  return (
+    <div style={{ textAlign: "center", maxWidth: 370, margin: "0 auto" }}>
+      {stage === "breath" && (
+        <>
+          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
+            textTransform: "uppercase" }}>surfacing</p>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 24, color: C.paper,
+            margin: "26px 0 10px", lineHeight: 1.5 }}>
+            Before the phone, before the day —<br />three slow breaths.
+          </div>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 54, color: C.storm, margin: "16px 0" }}>
+            {secs}
+          </div>
+          <p style={{ fontFamily: "Karla", fontSize: 13, color: C.mist }}>
+            In through the nose. Out long. Nothing is required of you yet.
+          </p>
+        </>
+      )}
+
+      {stage === "one" && (
+        <>
+          {one ? (
+            <>
+              <p style={{ fontFamily: "Karla", fontSize: 12, color: C.amber, letterSpacing: 2,
+                textTransform: "uppercase" }}>last-night you left this</p>
+              <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 26, color: C.paper,
+                margin: "18px 0", lineHeight: 1.4 }}>
+                {one}
+              </div>
+              <Sub>That's the whole plan. One anchor. Everything else is optional today.</Sub>
+              <BigButton onClick={() => setStage("receipt")}>Carry it</BigButton>
+            </>
+          ) : (
+            <>
+              <H2>Today gets ONE thing.</H2>
+              <Sub>
+                No note from last night — that's fine, set it now. One anchor beats a
+                roaring blank page every time.
+              </Sub>
+              <Input value={text} onChange={setText} autoFocus placeholder="Today's one thing…"
+                onEnter={setToday} />
+              <div style={{ marginTop: 18, display: "flex", gap: 10, justifyContent: "center" }}>
+                <BigButton onClick={setToday}>Set it</BigButton>
+                <BigButton ghost onClick={() => setStage("receipt")}>Not today</BigButton>
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {stage === "receipt" && receipt && (
+        <>
+          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
+            textTransform: "uppercase", marginBottom: 16 }}>a word from past you</p>
+          <div style={{ padding: "20px 22px", borderRadius: 16,
+            border: `1px solid rgba(216,179,106,0.4)`, background: "rgba(216,179,106,0.07)",
+            animation: "fadeIn 0.5s ease" }}>
+            <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 19, color: C.paper, lineHeight: 1.5 }}>
+              {receipt.t}
+            </div>
+            <div style={{ fontFamily: "Karla", fontSize: 11.5, color: C.amber, marginTop: 10, letterSpacing: 1 }}>
+              — you, {receipt.d}
+            </div>
+          </div>
+          <Sub style={{ marginTop: 16 }}>Whatever the morning brain says — this also happened.</Sub>
+          <BigButton onClick={() => setStage("ember")}>Onward</BigButton>
+        </>
+      )}
+
+      {stage === "ember" && (
+        <>
+          <H2>One ember to get vertical.</H2>
+          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 21, color: C.paper,
+            margin: "18px 0 8px", lineHeight: 1.5 }}>
+            {ember.text}
+          </div>
+          <p style={{ fontFamily: "Karla", fontSize: 13, color: C.mist, fontStyle: "italic", marginBottom: 8 }}>
+            {ember.why}
+          </p>
+          {showSmaller ? (
+            <p style={{ fontFamily: "Karla", fontSize: 13.5, color: C.amber, margin: "8px 0 18px",
+              animation: "fadeIn 0.4s ease" }}>
+              {ember.smaller}
+            </p>
+          ) : (
+            <button onClick={() => setShowSmaller(true)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: C.faint,
+                fontFamily: "Karla", fontSize: 12.5, textDecoration: "underline",
+                textUnderlineOffset: 3, margin: "4px 0 16px" }}>
+              too big right now?
+            </button>
+          )}
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <BigButton warm onClick={litOne}>Did it</BigButton>
+            <BigButton ghost onClick={() => setStage("done")}>Skip — no guilt</BigButton>
+          </div>
+        </>
+      )}
+
+      {stage === "done" && (
+        <>
+          <BigWord>Surfaced.</BigWord>
+          <Sub>
+            The hardest ten minutes of the day are already behind you.
+            The rest only has to be ordinary.
+          </Sub>
+          <BigButton ghost onClick={onBack}>Into the day</BigButton>
+        </>
+      )}
+      <BackLink onBack={onBack} />
+    </div>
+  );
+}
+
+// ————— POND — what the water keeps —————
+function Pond({ onBack }) {
+  const [embers, setEmbers] = useState(null);
+  const [proof, setProof] = useState(null);
+  const [weather, setWeather] = useState(null);
+
+  useEffect(() => {
+    sGet("sw-embers-total", 0).then(setEmbers);
+    sGet("sw-proof", []).then(setProof);
+    sGet("sw-weather", []).then(setWeather);
+  }, []);
+
+  if (embers === null || proof === null || weather === null) {
+    return <div style={{ textAlign: "center", fontFamily: "Karla", color: C.faint, paddingTop: 40 }}>looking into the water…</div>;
+  }
+
+  const empty = embers === 0 && proof.length === 0 && weather.length === 0;
+  const last30 = weather.slice(-30);
+
+  const Stat = ({ big, label, color }) => (
+    <div style={{ padding: "18px 12px", borderRadius: 16, flex: 1,
+      border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.03)" }}>
+      <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 32, color: color || C.sea }}>{big}</div>
+      <div style={{ fontFamily: "Karla", fontSize: 11.5, color: C.mist, marginTop: 4, letterSpacing: 0.5 }}>{label}</div>
+    </div>
+  );
+
+  return (
+    <div style={{ textAlign: "center", maxWidth: 380, margin: "0 auto" }}>
+      <H2>The pond remembers.</H2>
+      <Sub>What the fog erases, the water keeps. No streaks, no scores — just the record.</Sub>
+
+      {empty ? (
+        <p style={{ fontFamily: "Karla", fontSize: 13.5, color: C.faint, marginTop: 20, lineHeight: 1.7 }}>
+          Nothing here yet — the pond fills one small true thing at a time.
+          An ember, a receipt, a weather mark. It adds up quietly.
+        </p>
+      ) : (
+        <>
+          <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+            <Stat big={embers} label={embers === 1 ? "ember lit" : "embers lit"} color={C.amber} />
+            <Stat big={proof.length} label={proof.length === 1 ? "receipt kept" : "receipts kept"} color={C.amber} />
+            <Stat big={weather.length} label={weather.length === 1 ? "day logged" : "days logged"} color={C.storm} />
+          </div>
+          {last30.length > 1 && (
+            <div style={{ padding: "16px 14px", borderRadius: 16,
+              border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.03)" }}>
+              <div style={{ fontFamily: "Karla", fontSize: 11.5, color: C.faint,
+                letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 }}>
+                inner weather · last {last30.length} logged days
+              </div>
+              <div style={{ display: "flex", gap: 4, justifyContent: "center", flexWrap: "wrap", fontSize: 15 }}>
+                {last30.map((e, i) => (
+                  <span key={i} title={e.d}>
+                    {WEATHER.find((w) => w.k === e.w)?.g}
+                  </span>
+                ))}
+              </div>
+              <div style={{ fontFamily: "Karla", fontSize: 11.5, color: C.faint, marginTop: 10, fontStyle: "italic" }}>
+                it moves. it always moves.
+              </div>
+            </div>
+          )}
+          <Sub style={{ marginTop: 18 }}>
+            Every number up there was earned on a day when it wasn't easy.
+            That's the whole point of keeping them.
+          </Sub>
         </>
       )}
       <BackLink onBack={onBack} />
