@@ -17,17 +17,19 @@
     #loading { color: #A9C3D6; font-family: Georgia, serif; text-align: center;
       padding-top: 40vh; font-size: 16px; letter-spacing: 2px; }
   </style>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/tone@14.8.49/build/Tone.js"></script>
 </head>
 <body>
   <div id="root"><div id="loading">still water…</div></div>
-  <script type="text/babel" data-presets="react">
+  <script>
+window.addEventListener("error", function (e) {
+  var el = document.getElementById("loading");
+  if (el) el.textContent = "error: " + (e.message || "unknown");
+});
+"use strict";
 const { useState, useEffect, useRef } = React;
-
-
 // ————— Still Water v5 — a pocket kit for ADHD + heavy days —————
 // Truths this app is built on:
 // 1. Sometimes the mind won't calm until the body discharges. (Move, Spiral)
@@ -38,17 +40,16 @@ const { useState, useEffect, useRef } = React;
 // 5. Mood is weather, not climate. Logging it proves it moves. (Inner weather)
 // 6. The day needs a way to end, or it leaks into the night. (Night)
 const C = {
-  ink: "#0D1B2A",
-  deep: "#152638",
-  mist: "#A9C3D6",
-  paper: "#E9EEF2",
-  sea: "#7FB8A4",
-  seaDim: "#4E7A6B",
-  amber: "#D8B36A",
-  storm: "#8B9DC3",
-  faint: "rgba(169,195,214,0.35)",
+    ink: "#0D1B2A",
+    deep: "#152638",
+    mist: "#A9C3D6",
+    paper: "#E9EEF2",
+    sea: "#7FB8A4",
+    seaDim: "#4E7A6B",
+    amber: "#D8B36A",
+    storm: "#8B9DC3",
+    faint: "rgba(169,195,214,0.35)",
 };
-
 const FONTS = `
 @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600&family=Karla:wght@400;500;700&display=swap');
 * { box-sizing: border-box; }
@@ -75,1945 +76,1330 @@ input[type=range] { accent-color: ${C.sea}; }
   * { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; }
 }
 `;
-
 const TRUTHS = [
-  "Starting is the wall. The work is usually fine.",
-  "A moving body quiets a loud mind.",
-  "Done is a dopamine hit. Perfect is a trap.",
-  "You don't need motivation. You need a first step small enough to be silly.",
-  "One thing. Everything else genuinely can wait.",
-  "Feelings follow actions. Slowly. In that order.",
-  "The loop is a groove, not a message.",
-  "Depression has a terrible memory for your wins. Keep receipts.",
-  "Mood is weather, not climate.",
-  "A day that gets an ending doesn't leak into the night.",
-  "The critic is loud, not right.",
-  "Talk to yourself like someone you love came to you with the same problem.",
+    "Starting is the wall. The work is usually fine.",
+    "A moving body quiets a loud mind.",
+    "Done is a dopamine hit. Perfect is a trap.",
+    "You don't need motivation. You need a first step small enough to be silly.",
+    "One thing. Everything else genuinely can wait.",
+    "Feelings follow actions. Slowly. In that order.",
+    "The loop is a groove, not a message.",
+    "Depression has a terrible memory for your wins. Keep receipts.",
+    "Mood is weather, not climate.",
+    "A day that gets an ending doesn't leak into the night.",
+    "The critic is loud, not right.",
+    "Talk to yourself like someone you love came to you with the same problem.",
 ];
-
 // ————— dates & persistence (graceful — works without storage too) —————
 const localDate = (offsetDays = 0) => {
-  const d = new Date(Date.now() + offsetDays * 86400000);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const d = new Date(Date.now() + offsetDays * 86400000);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 async function sGet(key, fallback) {
-  try {
-    const v = localStorage.getItem(key);
-    return v != null ? JSON.parse(v) : fallback;
-  } catch { return fallback; }
+    try {
+        const v = localStorage.getItem(key);
+        return v != null ? JSON.parse(v) : fallback;
+    }
+    catch {
+        return fallback;
+    }
 }
 async function sSet(key, val) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* private mode etc. */ }
+    try {
+        localStorage.setItem(key, JSON.stringify(val));
+    }
+    catch { /* private mode etc. */ }
 }
-
 // ————— shared bits —————
 function BackLink({ onBack }) {
-  return (
-    <div style={{ marginTop: 34, textAlign: "center" }}>
-      <button onClick={onBack}
-        style={{ background: "none", border: "none", cursor: "pointer",
-          color: C.faint, fontFamily: "Karla", fontSize: 13, letterSpacing: 1 }}>
-        ← back to the pond
-      </button>
-    </div>
-  );
+    return (React.createElement("div", { style: { marginTop: 34, textAlign: "center" } },
+        React.createElement("button", { onClick: onBack, style: { background: "none", border: "none", cursor: "pointer",
+                color: C.faint, fontFamily: "Karla", fontSize: 13, letterSpacing: 1 } }, "\u2190 back to the pond")));
 }
-
 function Pill({ active, children, onClick }) {
-  return (
-    <button onClick={onClick}
-      style={{ padding: "8px 16px", borderRadius: 999, cursor: "pointer",
-        border: `1px solid ${active ? C.sea : C.faint}`,
-        background: active ? "rgba(127,184,164,0.15)" : "transparent",
-        color: active ? C.sea : C.mist, fontFamily: "Karla", fontSize: 13, fontWeight: 500 }}>
-      {children}
-    </button>
-  );
+    return (React.createElement("button", { onClick: onClick, style: { padding: "8px 16px", borderRadius: 999, cursor: "pointer",
+            border: `1px solid ${active ? C.sea : C.faint}`,
+            background: active ? "rgba(127,184,164,0.15)" : "transparent",
+            color: active ? C.sea : C.mist, fontFamily: "Karla", fontSize: 13, fontWeight: 500 } }, children));
 }
-
 function BigButton({ children, onClick, ghost, warm }) {
-  return (
-    <button onClick={onClick}
-      style={{ padding: "12px 30px", borderRadius: 999, cursor: "pointer", border: "none",
-        background: ghost ? "transparent" : warm ? C.amber : C.sea,
-        color: ghost ? C.mist : C.ink,
-        boxShadow: ghost ? `inset 0 0 0 1px ${C.faint}` : "none",
-        fontFamily: "Karla", fontWeight: 700, fontSize: 15 }}>
-      {children}
-    </button>
-  );
+    return (React.createElement("button", { onClick: onClick, style: { padding: "12px 30px", borderRadius: 999, cursor: "pointer", border: "none",
+            background: ghost ? "transparent" : warm ? C.amber : C.sea,
+            color: ghost ? C.mist : C.ink,
+            boxShadow: ghost ? `inset 0 0 0 1px ${C.faint}` : "none",
+            fontFamily: "Karla", fontWeight: 700, fontSize: 15 } }, children));
 }
-
 function Input({ value, onChange, onEnter, placeholder, autoFocus }) {
-  return (
-    <input value={value} autoFocus={autoFocus}
-      onChange={(e) => onChange(e.target.value)}
-      onKeyDown={(e) => e.key === "Enter" && onEnter && onEnter()}
-      placeholder={placeholder}
-      style={{ width: "100%", padding: "13px 16px", borderRadius: 12,
-        border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.05)",
-        color: C.paper, fontFamily: "Karla", fontSize: 15 }} />
-  );
+    return (React.createElement("input", { value: value, autoFocus: autoFocus, onChange: (e) => onChange(e.target.value), onKeyDown: (e) => e.key === "Enter" && onEnter && onEnter(), placeholder: placeholder, style: { width: "100%", padding: "13px 16px", borderRadius: 12,
+            border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.05)",
+            color: C.paper, fontFamily: "Karla", fontSize: 15 } }));
 }
-
 const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-const H2 = ({ children }) => (
-  <p style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 22, color: C.paper, margin: 0 }}>
-    {children}
-  </p>
-);
-const Sub = ({ children, style }) => (
-  <p style={{ fontFamily: "Karla", fontSize: 13.5, color: C.mist, lineHeight: 1.65,
-    margin: "12px 0 22px", ...style }}>
-    {children}
-  </p>
-);
-const BigWord = ({ children }) => (
-  <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 28, color: C.paper, marginTop: 30 }}>
-    {children}
-  </div>
-);
-
+const H2 = ({ children }) => (React.createElement("p", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 22, color: C.paper, margin: 0 } }, children));
+const Sub = ({ children, style }) => (React.createElement("p", { style: { fontFamily: "Karla", fontSize: 13.5, color: C.mist, lineHeight: 1.65,
+        margin: "12px 0 22px", ...style } }, children));
+const BigWord = ({ children }) => (React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 28, color: C.paper, marginTop: 30 } }, children));
 // ————— BREATHE —————
 const PATTERNS = {
-  box: { name: "Box · 4-4-4-4", hint: "Steady square. Good for racing thoughts.",
-    phases: [
-      { label: "Breathe in", secs: 4, scale: 1 },
-      { label: "Hold", secs: 4, scale: 1 },
-      { label: "Breathe out", secs: 4, scale: 0.55 },
-      { label: "Hold", secs: 4, scale: 0.55 },
-    ] },
-  relax: { name: "4-7-8", hint: "Long exhale. Good for restlessness at night.",
-    phases: [
-      { label: "Breathe in", secs: 4, scale: 1 },
-      { label: "Hold", secs: 7, scale: 1 },
-      { label: "Breathe out", secs: 8, scale: 0.55 },
-    ] },
-  sigh: { name: "Double sigh", hint: "Two quick inhales, long exhale. Fastest physiological reset there is.",
-    phases: [
-      { label: "Inhale", secs: 2, scale: 0.85 },
-      { label: "Inhale again — top up", secs: 1, scale: 1 },
-      { label: "Long sigh out", secs: 6, scale: 0.55 },
-    ] },
+    box: { name: "Box · 4-4-4-4", hint: "Steady square. Good for racing thoughts.",
+        phases: [
+            { label: "Breathe in", secs: 4, scale: 1 },
+            { label: "Hold", secs: 4, scale: 1 },
+            { label: "Breathe out", secs: 4, scale: 0.55 },
+            { label: "Hold", secs: 4, scale: 0.55 },
+        ] },
+    relax: { name: "4-7-8", hint: "Long exhale. Good for restlessness at night.",
+        phases: [
+            { label: "Breathe in", secs: 4, scale: 1 },
+            { label: "Hold", secs: 7, scale: 1 },
+            { label: "Breathe out", secs: 8, scale: 0.55 },
+        ] },
+    sigh: { name: "Double sigh", hint: "Two quick inhales, long exhale. Fastest physiological reset there is.",
+        phases: [
+            { label: "Inhale", secs: 2, scale: 0.85 },
+            { label: "Inhale again — top up", secs: 1, scale: 1 },
+            { label: "Long sigh out", secs: 6, scale: 0.55 },
+        ] },
 };
-
 function Ripples({ scale, secs }) {
-  return (
-    <div style={{ position: "relative", width: 240, height: 240, margin: "0 auto" }}>
-      {[0, 1, 2].map((i) => (
-        <div key={i} style={{ position: "absolute", inset: 0, borderRadius: "50%",
-          border: `1px solid ${C.faint}`, animation: "ripple 6s linear infinite",
-          animationDelay: `${i * 2}s` }} />
-      ))}
-      <div style={{ position: "absolute", inset: 28, borderRadius: "50%",
-        background: `radial-gradient(circle at 38% 32%, ${C.sea}, ${C.seaDim} 70%)`,
-        boxShadow: "0 0 60px rgba(127,184,164,0.25)",
-        transform: `scale(${scale})`,
-        transition: `transform ${secs}s cubic-bezier(0.4, 0, 0.3, 1)` }} />
-    </div>
-  );
+    return (React.createElement("div", { style: { position: "relative", width: 240, height: 240, margin: "0 auto" } },
+        [0, 1, 2].map((i) => (React.createElement("div", { key: i, style: { position: "absolute", inset: 0, borderRadius: "50%",
+                border: `1px solid ${C.faint}`, animation: "ripple 6s linear infinite",
+                animationDelay: `${i * 2}s` } }))),
+        React.createElement("div", { style: { position: "absolute", inset: 28, borderRadius: "50%",
+                background: `radial-gradient(circle at 38% 32%, ${C.sea}, ${C.seaDim} 70%)`,
+                boxShadow: "0 0 60px rgba(127,184,164,0.25)",
+                transform: `scale(${scale})`,
+                transition: `transform ${secs}s cubic-bezier(0.4, 0, 0.3, 1)` } })));
 }
-
 function Breathe({ onBack, initialPattern }) {
-  const [patternKey, setPatternKey] = useState(initialPattern || "box");
-  const [running, setRunning] = useState(false);
-  const [phaseIdx, setPhaseIdx] = useState(0);
-  const [cycles, setCycles] = useState(0);
-  const [count, setCount] = useState(0);
-  const pattern = PATTERNS[patternKey];
-  const phase = pattern.phases[phaseIdx];
-
-  useEffect(() => {
-    if (!running) return;
-    setCount(phase.secs);
-    const tick = setInterval(() => setCount((c) => Math.max(0, c - 1)), 1000);
-    const next = setTimeout(() => {
-      const nextIdx = (phaseIdx + 1) % pattern.phases.length;
-      if (nextIdx === 0) setCycles((c) => c + 1);
-      setPhaseIdx(nextIdx);
-    }, phase.secs * 1000);
-    return () => { clearInterval(tick); clearTimeout(next); };
-  }, [running, phaseIdx, patternKey]);
-
-  const reset = (key) => { setPatternKey(key); setRunning(false); setPhaseIdx(0); setCycles(0); };
-
-  return (
-    <div style={{ textAlign: "center" }}>
-      <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginBottom: 26 }}>
-        {Object.entries(PATTERNS).map(([key, p]) => (
-          <Pill key={key} active={key === patternKey} onClick={() => reset(key)}>{p.name}</Pill>
-        ))}
-      </div>
-      <Ripples scale={running ? phase.scale : 0.55} secs={running ? phase.secs : 0.5} />
-      <div style={{ height: 84, marginTop: 24 }}>
-        {running ? (
-          <>
-            <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 25, color: C.paper }}>{phase.label}</div>
-            <div style={{ fontFamily: "Karla", fontSize: 15, color: C.mist, marginTop: 6 }}>{count > 0 ? count : ""}&nbsp;</div>
-            {cycles > 0 && <div style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 1 }}>{cycles} {cycles === 1 ? "cycle" : "cycles"}</div>}
-          </>
-        ) : (
-          <div style={{ fontFamily: "Karla", fontSize: 14, color: C.mist, maxWidth: 280, margin: "0 auto" }}>{pattern.hint}</div>
-        )}
-      </div>
-      <BigButton onClick={() => { setRunning(!running); if (!running) setPhaseIdx(0); }} ghost={running}>
-        {running ? "Pause" : "Begin"}
-      </BigButton>
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    const [patternKey, setPatternKey] = useState(initialPattern || "box");
+    const [running, setRunning] = useState(false);
+    const [phaseIdx, setPhaseIdx] = useState(0);
+    const [cycles, setCycles] = useState(0);
+    const [count, setCount] = useState(0);
+    const pattern = PATTERNS[patternKey];
+    const phase = pattern.phases[phaseIdx];
+    useEffect(() => {
+        if (!running)
+            return;
+        setCount(phase.secs);
+        const tick = setInterval(() => setCount((c) => Math.max(0, c - 1)), 1000);
+        const next = setTimeout(() => {
+            const nextIdx = (phaseIdx + 1) % pattern.phases.length;
+            if (nextIdx === 0)
+                setCycles((c) => c + 1);
+            setPhaseIdx(nextIdx);
+        }, phase.secs * 1000);
+        return () => { clearInterval(tick); clearTimeout(next); };
+    }, [running, phaseIdx, patternKey]);
+    const reset = (key) => { setPatternKey(key); setRunning(false); setPhaseIdx(0); setCycles(0); };
+    return (React.createElement("div", { style: { textAlign: "center" } },
+        React.createElement("div", { style: { display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginBottom: 26 } }, Object.entries(PATTERNS).map(([key, p]) => (React.createElement(Pill, { key: key, active: key === patternKey, onClick: () => reset(key) }, p.name)))),
+        React.createElement(Ripples, { scale: running ? phase.scale : 0.55, secs: running ? phase.secs : 0.5 }),
+        React.createElement("div", { style: { height: 84, marginTop: 24 } }, running ? (React.createElement(React.Fragment, null,
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 25, color: C.paper } }, phase.label),
+            React.createElement("div", { style: { fontFamily: "Karla", fontSize: 15, color: C.mist, marginTop: 6 } },
+                count > 0 ? count : "",
+                "\u00A0"),
+            cycles > 0 && React.createElement("div", { style: { fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 1 } },
+                cycles,
+                " ",
+                cycles === 1 ? "cycle" : "cycles"))) : (React.createElement("div", { style: { fontFamily: "Karla", fontSize: 14, color: C.mist, maxWidth: 280, margin: "0 auto" } }, pattern.hint))),
+        React.createElement(BigButton, { onClick: () => { setRunning(!running); if (!running)
+                setPhaseIdx(0); }, ghost: running }, running ? "Pause" : "Begin"),
+        React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— RELEASE —————
 function Dump({ onBack }) {
-  const [text, setText] = useState("");
-  const [floating, setFloating] = useState([]);
-  const [released, setReleased] = useState(0);
-  const idRef = useRef(0);
-
-  const release = () => {
-    const t = text.trim();
-    if (!t) return;
-    const id = idRef.current++;
-    setFloating((f) => [...f, { id, t }]);
-    setText("");
-    setReleased((r) => r + 1);
-    setTimeout(() => setFloating((f) => f.filter((x) => x.id !== id)), 5000);
-  };
-
-  return (
-    <div style={{ textAlign: "center" }}>
-      <Sub style={{ maxWidth: 300, margin: "0 auto 20px" }}>
-        Write whatever is looping. Release it and watch it drift — nothing is saved.
-      </Sub>
-      <div style={{ minHeight: 140, marginBottom: 12 }}>
-        {floating.map((f) => (
-          <div key={f.id} style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 17,
-            color: C.paper, padding: "6px 0", animation: "drift 5s ease forwards" }}>{f.t}</div>
-        ))}
-        {floating.length === 0 && (
-          <div style={{ paddingTop: 52, fontFamily: "Karla", fontSize: 13, color: C.faint }}>still water</div>
-        )}
-      </div>
-      <div style={{ display: "flex", gap: 8, maxWidth: 360, margin: "0 auto" }}>
-        <Input value={text} onChange={setText} onEnter={release} placeholder="What's circling?" />
-        <button onClick={release}
-          style={{ padding: "0 22px", borderRadius: 12, border: "none", cursor: "pointer",
-            background: C.sea, color: C.ink, fontFamily: "Karla", fontWeight: 700, fontSize: 14 }}>
-          Release
-        </button>
-      </div>
-      {released > 0 && (
-        <div style={{ marginTop: 18, fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 1 }}>
-          {released} {released === 1 ? "thought" : "thoughts"} released
-        </div>
-      )}
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    const [text, setText] = useState("");
+    const [floating, setFloating] = useState([]);
+    const [released, setReleased] = useState(0);
+    const idRef = useRef(0);
+    const release = () => {
+        const t = text.trim();
+        if (!t)
+            return;
+        const id = idRef.current++;
+        setFloating((f) => [...f, { id, t }]);
+        setText("");
+        setReleased((r) => r + 1);
+        setTimeout(() => setFloating((f) => f.filter((x) => x.id !== id)), 5000);
+    };
+    return (React.createElement("div", { style: { textAlign: "center" } },
+        React.createElement(Sub, { style: { maxWidth: 300, margin: "0 auto 20px" } }, "Write whatever is looping. Release it and watch it drift \u2014 nothing is saved."),
+        React.createElement("div", { style: { minHeight: 140, marginBottom: 12 } },
+            floating.map((f) => (React.createElement("div", { key: f.id, style: { fontFamily: "'Shippori Mincho', serif", fontSize: 17,
+                    color: C.paper, padding: "6px 0", animation: "drift 5s ease forwards" } }, f.t))),
+            floating.length === 0 && (React.createElement("div", { style: { paddingTop: 52, fontFamily: "Karla", fontSize: 13, color: C.faint } }, "still water"))),
+        React.createElement("div", { style: { display: "flex", gap: 8, maxWidth: 360, margin: "0 auto" } },
+            React.createElement(Input, { value: text, onChange: setText, onEnter: release, placeholder: "What's circling?" }),
+            React.createElement("button", { onClick: release, style: { padding: "0 22px", borderRadius: 12, border: "none", cursor: "pointer",
+                    background: C.sea, color: C.ink, fontFamily: "Karla", fontWeight: 700, fontSize: 14 } }, "Release")),
+        released > 0 && (React.createElement("div", { style: { marginTop: 18, fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 1 } },
+            released,
+            " ",
+            released === 1 ? "thought" : "thoughts",
+            " released")),
+        React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— GROUND —————
 const GROUND_STEPS = [
-  { sense: "you can see", count: 5, verb: "Look around" },
-  { sense: "you can touch", count: 4, verb: "Reach out" },
-  { sense: "you can hear", count: 3, verb: "Listen" },
-  { sense: "you can smell", count: 2, verb: "Breathe in" },
-  { sense: "you can taste", count: 1, verb: "Notice" },
+    { sense: "you can see", count: 5, verb: "Look around" },
+    { sense: "you can touch", count: 4, verb: "Reach out" },
+    { sense: "you can hear", count: 3, verb: "Listen" },
+    { sense: "you can smell", count: 2, verb: "Breathe in" },
+    { sense: "you can taste", count: 1, verb: "Notice" },
 ];
-
 function Ground({ onBack }) {
-  const [stepIdx, setStepIdx] = useState(0);
-  const [tapped, setTapped] = useState(0);
-  const [done, setDone] = useState(false);
-  const step = GROUND_STEPS[stepIdx];
-
-  const tap = () => {
-    const next = tapped + 1;
-    if (next >= step.count) {
-      if (stepIdx + 1 >= GROUND_STEPS.length) { setDone(true); return; }
-      setStepIdx(stepIdx + 1); setTapped(0);
-    } else setTapped(next);
-  };
-
-  if (done) {
-    return (
-      <div style={{ textAlign: "center", paddingTop: 40 }}>
-        <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 28, color: C.paper }}>You're here.</div>
-        <Sub>Five senses, back in the room.</Sub>
-        <BigButton ghost onClick={() => { setStepIdx(0); setTapped(0); setDone(false); }}>Again</BigButton>
-        <BackLink onBack={onBack} />
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ textAlign: "center" }}>
-      <p style={{ fontFamily: "Karla", fontSize: 13, color: C.faint, letterSpacing: 2 }}>5 · 4 · 3 · 2 · 1</p>
-      <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 25, color: C.paper, marginTop: 16, lineHeight: 1.4 }}>
-        {step.verb}.<br />
-        <span style={{ color: C.sea }}>{step.count - tapped}</span> {step.count - tapped === 1 ? "thing" : "things"} {step.sense}.
-      </div>
-      <Sub>Tap the stone for each one you notice.</Sub>
-      <button onClick={tap} aria-label="Mark one noticed"
-        style={{ marginTop: 6, width: 126, height: 126, borderRadius: "50%", cursor: "pointer", border: "none",
-          background: `radial-gradient(circle at 38% 32%, ${C.sea}, ${C.seaDim} 75%)`,
-          boxShadow: "0 0 44px rgba(127,184,164,0.25)",
-          color: C.ink, fontFamily: "'Shippori Mincho', serif", fontSize: 32 }}>
-        {step.count - tapped}
-      </button>
-      <div style={{ marginTop: 22, display: "flex", gap: 6, justifyContent: "center" }}>
-        {GROUND_STEPS.map((s, i) => (
-          <div key={i} style={{ width: 22, height: 3, borderRadius: 2,
-            background: i < stepIdx ? C.sea : i === stepIdx ? C.mist : C.faint }} />
-        ))}
-      </div>
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    const [stepIdx, setStepIdx] = useState(0);
+    const [tapped, setTapped] = useState(0);
+    const [done, setDone] = useState(false);
+    const step = GROUND_STEPS[stepIdx];
+    const tap = () => {
+        const next = tapped + 1;
+        if (next >= step.count) {
+            if (stepIdx + 1 >= GROUND_STEPS.length) {
+                setDone(true);
+                return;
+            }
+            setStepIdx(stepIdx + 1);
+            setTapped(0);
+        }
+        else
+            setTapped(next);
+    };
+    if (done) {
+        return (React.createElement("div", { style: { textAlign: "center", paddingTop: 40 } },
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 28, color: C.paper } }, "You're here."),
+            React.createElement(Sub, null, "Five senses, back in the room."),
+            React.createElement(BigButton, { ghost: true, onClick: () => { setStepIdx(0); setTapped(0); setDone(false); } }, "Again"),
+            React.createElement(BackLink, { onBack: onBack })));
+    }
+    return (React.createElement("div", { style: { textAlign: "center" } },
+        React.createElement("p", { style: { fontFamily: "Karla", fontSize: 13, color: C.faint, letterSpacing: 2 } }, "5 \u00B7 4 \u00B7 3 \u00B7 2 \u00B7 1"),
+        React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 25, color: C.paper, marginTop: 16, lineHeight: 1.4 } },
+            step.verb,
+            ".",
+            React.createElement("br", null),
+            React.createElement("span", { style: { color: C.sea } }, step.count - tapped),
+            " ",
+            step.count - tapped === 1 ? "thing" : "things",
+            " ",
+            step.sense,
+            "."),
+        React.createElement(Sub, null, "Tap the stone for each one you notice."),
+        React.createElement("button", { onClick: tap, "aria-label": "Mark one noticed", style: { marginTop: 6, width: 126, height: 126, borderRadius: "50%", cursor: "pointer", border: "none",
+                background: `radial-gradient(circle at 38% 32%, ${C.sea}, ${C.seaDim} 75%)`,
+                boxShadow: "0 0 44px rgba(127,184,164,0.25)",
+                color: C.ink, fontFamily: "'Shippori Mincho', serif", fontSize: 32 } }, step.count - tapped),
+        React.createElement("div", { style: { marginTop: 22, display: "flex", gap: 6, justifyContent: "center" } }, GROUND_STEPS.map((s, i) => (React.createElement("div", { key: i, style: { width: 22, height: 3, borderRadius: 2,
+                background: i < stepIdx ? C.sea : i === stepIdx ? C.mist : C.faint } })))),
+        React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— UNSTICK —————
 function Unstick({ onBack }) {
-  const [stage, setStage] = useState("task");
-  const [task, setTask] = useState("");
-  const [tinyStep, setTinyStep] = useState("");
-  const [secs, setSecs] = useState(120);
-  const [running, setRunning] = useState(false);
-  const [extended, setExtended] = useState(0);
-
-  useEffect(() => {
-    if (!running) return;
-    if (secs <= 0) { setRunning(false); setStage("done"); return; }
-    const t = setTimeout(() => setSecs((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [running, secs]);
-
-  const start = () => { setSecs(120); setRunning(true); setStage("timer"); };
-  const extend = () => { setSecs(300); setExtended((e) => e + 1); setRunning(true); setStage("timer"); };
-
-  return (
-    <div style={{ textAlign: "center", maxWidth: 360, margin: "0 auto" }}>
-      {stage === "task" && (
-        <>
-          <H2>What are you avoiding?</H2>
-          <Sub>No judgment. Avoidance is a starting problem, not a character problem.</Sub>
-          <Input value={task} onChange={setTask} autoFocus placeholder="The thing…"
-            onEnter={() => task.trim() && setStage("step")} />
-          <div style={{ marginTop: 18 }}>
-            <BigButton onClick={() => task.trim() && setStage("step")}>Next</BigButton>
-          </div>
-        </>
-      )}
-      {stage === "step" && (
-        <>
-          <H2>What's a first step so small it's almost silly?</H2>
-          <Sub>"Open the file." "Write one sentence." "Find the phone number." Smaller than you think.</Sub>
-          <Input value={tinyStep} onChange={setTinyStep} autoFocus placeholder="The silly-small step…"
-            onEnter={() => tinyStep.trim() && start()} />
-          <div style={{ marginTop: 18 }}>
-            <BigButton onClick={() => tinyStep.trim() && start()}>Give me 2 minutes</BigButton>
-          </div>
-        </>
-      )}
-      {stage === "timer" && (
-        <>
-          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2, textTransform: "uppercase" }}>
-            right now, only this
-          </p>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 23, color: C.paper, margin: "14px 0 6px" }}>
-            {tinyStep}
-          </div>
-          <div style={{ fontFamily: "Karla", fontSize: 12, color: C.faint }}>({task})</div>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 64, color: C.sea, margin: "26px 0 8px",
-            fontVariantNumeric: "tabular-nums" }}>
-            {fmt(secs)}
-          </div>
-          <Sub>When it hits zero, you're allowed to stop. That's the deal.</Sub>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-            <BigButton ghost onClick={() => setRunning(!running)}>{running ? "Pause" : "Resume"}</BigButton>
-            <BigButton ghost onClick={() => { setRunning(false); setStage("done"); }}>Done early</BigButton>
-          </div>
-        </>
-      )}
-      {stage === "done" && (
-        <>
-          <BigWord>You started.</BigWord>
-          <Sub>
-            {extended > 0 ? "And you kept going. The wall was never the work." : "That was the whole battle. Momentum is optional — but it's right there if you want it."}
-          </Sub>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-            <BigButton onClick={extend}>+5 more minutes</BigButton>
-            <BigButton ghost onClick={onBack}>Stop — it counts</BigButton>
-          </div>
-          <p style={{ fontFamily: "Karla", fontSize: 12.5, color: C.amber, marginTop: 18 }}>
-            This belongs in Proof. "Started the thing I was avoiding" is a receipt.
-          </p>
-        </>
-      )}
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    const [stage, setStage] = useState("task");
+    const [task, setTask] = useState("");
+    const [tinyStep, setTinyStep] = useState("");
+    const [secs, setSecs] = useState(120);
+    const [running, setRunning] = useState(false);
+    const [extended, setExtended] = useState(0);
+    useEffect(() => {
+        if (!running)
+            return;
+        if (secs <= 0) {
+            setRunning(false);
+            setStage("done");
+            return;
+        }
+        const t = setTimeout(() => setSecs((s) => s - 1), 1000);
+        return () => clearTimeout(t);
+    }, [running, secs]);
+    const start = () => { setSecs(120); setRunning(true); setStage("timer"); };
+    const extend = () => { setSecs(300); setExtended((e) => e + 1); setRunning(true); setStage("timer"); };
+    return (React.createElement("div", { style: { textAlign: "center", maxWidth: 360, margin: "0 auto" } },
+        stage === "task" && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "What are you avoiding?"),
+            React.createElement(Sub, null, "No judgment. Avoidance is a starting problem, not a character problem."),
+            React.createElement(Input, { value: task, onChange: setTask, autoFocus: true, placeholder: "The thing\u2026", onEnter: () => task.trim() && setStage("step") }),
+            React.createElement("div", { style: { marginTop: 18 } },
+                React.createElement(BigButton, { onClick: () => task.trim() && setStage("step") }, "Next")))),
+        stage === "step" && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "What's a first step so small it's almost silly?"),
+            React.createElement(Sub, null, "\"Open the file.\" \"Write one sentence.\" \"Find the phone number.\" Smaller than you think."),
+            React.createElement(Input, { value: tinyStep, onChange: setTinyStep, autoFocus: true, placeholder: "The silly-small step\u2026", onEnter: () => tinyStep.trim() && start() }),
+            React.createElement("div", { style: { marginTop: 18 } },
+                React.createElement(BigButton, { onClick: () => tinyStep.trim() && start() }, "Give me 2 minutes")))),
+        stage === "timer" && (React.createElement(React.Fragment, null,
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2, textTransform: "uppercase" } }, "right now, only this"),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 23, color: C.paper, margin: "14px 0 6px" } }, tinyStep),
+            React.createElement("div", { style: { fontFamily: "Karla", fontSize: 12, color: C.faint } },
+                "(",
+                task,
+                ")"),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 64, color: C.sea, margin: "26px 0 8px",
+                    fontVariantNumeric: "tabular-nums" } }, fmt(secs)),
+            React.createElement(Sub, null, "When it hits zero, you're allowed to stop. That's the deal."),
+            React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "center" } },
+                React.createElement(BigButton, { ghost: true, onClick: () => setRunning(!running) }, running ? "Pause" : "Resume"),
+                React.createElement(BigButton, { ghost: true, onClick: () => { setRunning(false); setStage("done"); } }, "Done early")))),
+        stage === "done" && (React.createElement(React.Fragment, null,
+            React.createElement(BigWord, null, "You started."),
+            React.createElement(Sub, null, extended > 0 ? "And you kept going. The wall was never the work." : "That was the whole battle. Momentum is optional — but it's right there if you want it."),
+            React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "center" } },
+                React.createElement(BigButton, { onClick: extend }, "+5 more minutes"),
+                React.createElement(BigButton, { ghost: true, onClick: onBack }, "Stop \u2014 it counts")),
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 12.5, color: C.amber, marginTop: 18 } }, "This belongs in Proof. \"Started the thing I was avoiding\" is a receipt."))),
+        React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— MOVE —————
 const MOVES = [
-  { text: "Shake out your hands and arms. Properly. Like flicking off water.", secs: 15 },
-  { text: "Push hard against a wall or your desk for the whole count. Really push.", secs: 15 },
-  { text: "Roll your shoulders slowly. Unclench your jaw. Drop your tongue from the roof of your mouth.", secs: 15 },
-  { text: "Stand up and reach as tall as you can. Then fold down loose, arms heavy.", secs: 15 },
-  { text: "March or bounce in place. Doesn't need to look good.", secs: 20 },
-  { text: "Stop. Hands on chest. Three slow breaths and notice the buzz settling.", secs: 15 },
+    { text: "Shake out your hands and arms. Properly. Like flicking off water.", secs: 15 },
+    { text: "Push hard against a wall or your desk for the whole count. Really push.", secs: 15 },
+    { text: "Roll your shoulders slowly. Unclench your jaw. Drop your tongue from the roof of your mouth.", secs: 15 },
+    { text: "Stand up and reach as tall as you can. Then fold down loose, arms heavy.", secs: 15 },
+    { text: "March or bounce in place. Doesn't need to look good.", secs: 20 },
+    { text: "Stop. Hands on chest. Three slow breaths and notice the buzz settling.", secs: 15 },
 ];
-
 function Move({ onBack }) {
-  const [idx, setIdx] = useState(-1);
-  const [secs, setSecs] = useState(0);
-  const [running, setRunning] = useState(false);
-  const done = idx >= MOVES.length;
-
-  useEffect(() => {
-    if (!running || done || idx < 0) return;
-    if (secs <= 0) {
-      if (idx + 1 >= MOVES.length) { setIdx(MOVES.length); setRunning(false); }
-      else { setIdx(idx + 1); setSecs(MOVES[idx + 1].secs); }
-      return;
-    }
-    const t = setTimeout(() => setSecs((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [running, secs, idx]);
-
-  const start = () => { setIdx(0); setSecs(MOVES[0].secs); setRunning(true); };
-
-  return (
-    <div style={{ textAlign: "center", maxWidth: 360, margin: "0 auto" }}>
-      {idx === -1 && (
-        <>
-          <H2>Sometimes stillness backfires.</H2>
-          <Sub>
-            An ADHD nervous system often needs to <em>discharge</em> before it can settle.
-            Ninety seconds of moving, then the breathing actually works.
-          </Sub>
-          <BigButton onClick={start}>90-second reset</BigButton>
-        </>
-      )}
-      {idx >= 0 && !done && (
-        <>
-          <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 30 }}>
-            {MOVES.map((m, i) => (
-              <div key={i} style={{ width: 26, height: 3, borderRadius: 2,
-                background: i < idx ? C.sea : i === idx ? C.mist : C.faint }} />
-            ))}
-          </div>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 22, color: C.paper,
-            lineHeight: 1.5, minHeight: 100 }}>
-            {MOVES[idx].text}
-          </div>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 52, color: C.sea, margin: "18px 0" }}>
-            {secs}
-          </div>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-            <BigButton ghost onClick={() => setRunning(!running)}>{running ? "Pause" : "Resume"}</BigButton>
-            <BigButton ghost onClick={() => {
-              if (idx + 1 >= MOVES.length) { setIdx(MOVES.length); setRunning(false); }
-              else { setIdx(idx + 1); setSecs(MOVES[idx + 1].secs); }
-            }}>Skip</BigButton>
-          </div>
-        </>
-      )}
-      {done && (
-        <>
-          <BigWord>Discharged.</BigWord>
-          <Sub>If the buzz is still there, go again — or take it to the breathing pond now that it can land.</Sub>
-          <BigButton ghost onClick={start}>Once more</BigButton>
-        </>
-      )}
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    const [idx, setIdx] = useState(-1);
+    const [secs, setSecs] = useState(0);
+    const [running, setRunning] = useState(false);
+    const done = idx >= MOVES.length;
+    useEffect(() => {
+        if (!running || done || idx < 0)
+            return;
+        if (secs <= 0) {
+            if (idx + 1 >= MOVES.length) {
+                setIdx(MOVES.length);
+                setRunning(false);
+            }
+            else {
+                setIdx(idx + 1);
+                setSecs(MOVES[idx + 1].secs);
+            }
+            return;
+        }
+        const t = setTimeout(() => setSecs((s) => s - 1), 1000);
+        return () => clearTimeout(t);
+    }, [running, secs, idx]);
+    const start = () => { setIdx(0); setSecs(MOVES[0].secs); setRunning(true); };
+    return (React.createElement("div", { style: { textAlign: "center", maxWidth: 360, margin: "0 auto" } },
+        idx === -1 && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "Sometimes stillness backfires."),
+            React.createElement(Sub, null,
+                "An ADHD nervous system often needs to ",
+                React.createElement("em", null, "discharge"),
+                " before it can settle. Ninety seconds of moving, then the breathing actually works."),
+            React.createElement(BigButton, { onClick: start }, "90-second reset"))),
+        idx >= 0 && !done && (React.createElement(React.Fragment, null,
+            React.createElement("div", { style: { display: "flex", gap: 6, justifyContent: "center", marginBottom: 30 } }, MOVES.map((m, i) => (React.createElement("div", { key: i, style: { width: 26, height: 3, borderRadius: 2,
+                    background: i < idx ? C.sea : i === idx ? C.mist : C.faint } })))),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 22, color: C.paper,
+                    lineHeight: 1.5, minHeight: 100 } }, MOVES[idx].text),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 52, color: C.sea, margin: "18px 0" } }, secs),
+            React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "center" } },
+                React.createElement(BigButton, { ghost: true, onClick: () => setRunning(!running) }, running ? "Pause" : "Resume"),
+                React.createElement(BigButton, { ghost: true, onClick: () => {
+                        if (idx + 1 >= MOVES.length) {
+                            setIdx(MOVES.length);
+                            setRunning(false);
+                        }
+                        else {
+                            setIdx(idx + 1);
+                            setSecs(MOVES[idx + 1].secs);
+                        }
+                    } }, "Skip")))),
+        done && (React.createElement(React.Fragment, null,
+            React.createElement(BigWord, null, "Discharged."),
+            React.createElement(Sub, null, "If the buzz is still there, go again \u2014 or take it to the breathing pond now that it can land."),
+            React.createElement(BigButton, { ghost: true, onClick: start }, "Once more"))),
+        React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— TRIAGE —————
 function Triage({ onBack }) {
-  const [phase, setPhase] = useState("list");
-  const [items, setItems] = useState([]);
-  const [text, setText] = useState("");
-  const [chosen, setChosen] = useState(null);
-
-  const add = () => {
-    const t = text.trim();
-    if (!t) return;
-    setItems((arr) => [...arr, t]);
-    setText("");
-  };
-
-  return (
-    <div style={{ textAlign: "center", maxWidth: 380, margin: "0 auto" }}>
-      {phase === "list" && (
-        <>
-          <H2>Everything shouting at you — list it.</H2>
-          <Sub>Overwhelm is usually ten tasks trying to go first. Get them out of your head.</Sub>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Input value={text} onChange={setText} onEnter={add} autoFocus placeholder="One thing shouting…" />
-            <button onClick={add}
-              style={{ padding: "0 20px", borderRadius: 12, border: "none", cursor: "pointer",
-                background: C.sea, color: C.ink, fontFamily: "Karla", fontWeight: 700 }}>Add</button>
-          </div>
-          <div style={{ margin: "20px 0", textAlign: "left" }}>
-            {items.map((it, i) => (
-              <div key={i} style={{ fontFamily: "Karla", fontSize: 15, color: C.paper,
-                padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.faint}`, marginBottom: 8 }}>
-                {it}
-              </div>
-            ))}
-          </div>
-          {items.length >= 2 && (
-            <BigButton onClick={() => setPhase("pick")}>Now pick ONE</BigButton>
-          )}
-        </>
-      )}
-      {phase === "pick" && (
-        <>
-          <H2>Which one, if done, quiets the most noise?</H2>
-          <Sub>Not the biggest. Not the "should". The loudest.</Sub>
-          {items.map((it, i) => (
-            <button key={i} onClick={() => { setChosen(it); setPhase("one"); }}
-              style={{ display: "block", width: "100%", textAlign: "left", cursor: "pointer",
-                fontFamily: "Karla", fontSize: 15, color: C.paper, padding: "13px 16px",
-                borderRadius: 10, border: `1px solid ${C.faint}`,
-                background: "rgba(233,238,242,0.04)", marginBottom: 8 }}>
-              {it}
-            </button>
-          ))}
-        </>
-      )}
-      {phase === "one" && (
-        <>
-          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
-            textTransform: "uppercase", marginTop: 20 }}>this. just this.</p>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 30, color: C.paper,
-            margin: "18px 0", lineHeight: 1.4 }}>
-            {chosen}
-          </div>
-          <Sub>The other {items.length - 1} {items.length - 1 === 1 ? "thing waits" : "things wait"}. They are allowed to wait.</Sub>
-          <div style={{ fontFamily: "Karla", fontSize: 13, color: C.amber, marginBottom: 26 }}>
-            Tip: take it to Unstick and give it two minutes.
-          </div>
-          <BigButton ghost onClick={() => { setItems([]); setChosen(null); setPhase("list"); }}>Start over</BigButton>
-        </>
-      )}
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    const [phase, setPhase] = useState("list");
+    const [items, setItems] = useState([]);
+    const [text, setText] = useState("");
+    const [chosen, setChosen] = useState(null);
+    const add = () => {
+        const t = text.trim();
+        if (!t)
+            return;
+        setItems((arr) => [...arr, t]);
+        setText("");
+    };
+    return (React.createElement("div", { style: { textAlign: "center", maxWidth: 380, margin: "0 auto" } },
+        phase === "list" && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "Everything shouting at you \u2014 list it."),
+            React.createElement(Sub, null, "Overwhelm is usually ten tasks trying to go first. Get them out of your head."),
+            React.createElement("div", { style: { display: "flex", gap: 8 } },
+                React.createElement(Input, { value: text, onChange: setText, onEnter: add, autoFocus: true, placeholder: "One thing shouting\u2026" }),
+                React.createElement("button", { onClick: add, style: { padding: "0 20px", borderRadius: 12, border: "none", cursor: "pointer",
+                        background: C.sea, color: C.ink, fontFamily: "Karla", fontWeight: 700 } }, "Add")),
+            React.createElement("div", { style: { margin: "20px 0", textAlign: "left" } }, items.map((it, i) => (React.createElement("div", { key: i, style: { fontFamily: "Karla", fontSize: 15, color: C.paper,
+                    padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.faint}`, marginBottom: 8 } }, it)))),
+            items.length >= 2 && (React.createElement(BigButton, { onClick: () => setPhase("pick") }, "Now pick ONE")))),
+        phase === "pick" && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "Which one, if done, quiets the most noise?"),
+            React.createElement(Sub, null, "Not the biggest. Not the \"should\". The loudest."),
+            items.map((it, i) => (React.createElement("button", { key: i, onClick: () => { setChosen(it); setPhase("one"); }, style: { display: "block", width: "100%", textAlign: "left", cursor: "pointer",
+                    fontFamily: "Karla", fontSize: 15, color: C.paper, padding: "13px 16px",
+                    borderRadius: 10, border: `1px solid ${C.faint}`,
+                    background: "rgba(233,238,242,0.04)", marginBottom: 8 } }, it))))),
+        phase === "one" && (React.createElement(React.Fragment, null,
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
+                    textTransform: "uppercase", marginTop: 20 } }, "this. just this."),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 30, color: C.paper,
+                    margin: "18px 0", lineHeight: 1.4 } }, chosen),
+            React.createElement(Sub, null,
+                "The other ",
+                items.length - 1,
+                " ",
+                items.length - 1 === 1 ? "thing waits" : "things wait",
+                ". They are allowed to wait."),
+            React.createElement("div", { style: { fontFamily: "Karla", fontSize: 13, color: C.amber, marginBottom: 26 } }, "Tip: take it to Unstick and give it two minutes."),
+            React.createElement(BigButton, { ghost: true, onClick: () => { setItems([]); setChosen(null); setPhase("list"); } }, "Start over"))),
+        React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— FIDGET —————
 function Fidget({ onBack }) {
-  const [ripples, setRipples] = useState([]);
-  const [taps, setTaps] = useState(0);
-  const idRef = useRef(0);
-
-  const tap = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-    const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-    const id = idRef.current++;
-    setRipples((r) => [...r, { id, x, y }]);
-    setTaps((t) => t + 1);
-    setTimeout(() => setRipples((r) => r.filter((q) => q.id !== id)), 900);
-  };
-
-  return (
-    <div style={{ textAlign: "center" }}>
-      <Sub>For restless hands on a long call. Tap the water anywhere.</Sub>
-      <div onPointerDown={tap} role="button" aria-label="Tap the water"
-        style={{ position: "relative", height: 340, borderRadius: 20, overflow: "hidden",
-          cursor: "pointer", touchAction: "manipulation",
-          background: `radial-gradient(circle at 50% 30%, #1B3247, ${C.ink})`,
-          border: `1px solid ${C.faint}` }}>
-        {ripples.map((r) => (
-          <div key={r.id} style={{ position: "absolute", left: r.x - 40, top: r.y - 40,
-            width: 80, height: 80, borderRadius: "50%",
-            border: `2px solid ${C.sea}`, animation: "tapRipple 0.9s ease-out forwards" }} />
-        ))}
-        <div style={{ position: "absolute", bottom: 14, width: "100%",
-          fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 1 }}>
-          {taps > 0 ? `${taps} ripples` : ""}
-        </div>
-      </div>
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    const [ripples, setRipples] = useState([]);
+    const [taps, setTaps] = useState(0);
+    const idRef = useRef(0);
+    const tap = (e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+        const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+        const id = idRef.current++;
+        setRipples((r) => [...r, { id, x, y }]);
+        setTaps((t) => t + 1);
+        setTimeout(() => setRipples((r) => r.filter((q) => q.id !== id)), 900);
+    };
+    return (React.createElement("div", { style: { textAlign: "center" } },
+        React.createElement(Sub, null, "For restless hands on a long call. Tap the water anywhere."),
+        React.createElement("div", { onPointerDown: tap, role: "button", "aria-label": "Tap the water", style: { position: "relative", height: 340, borderRadius: 20, overflow: "hidden",
+                cursor: "pointer", touchAction: "manipulation",
+                background: `radial-gradient(circle at 50% 30%, #1B3247, ${C.ink})`,
+                border: `1px solid ${C.faint}` } },
+            ripples.map((r) => (React.createElement("div", { key: r.id, style: { position: "absolute", left: r.x - 40, top: r.y - 40,
+                    width: 80, height: 80, borderRadius: "50%",
+                    border: `2px solid ${C.sea}`, animation: "tapRipple 0.9s ease-out forwards" } }))),
+            React.createElement("div", { style: { position: "absolute", bottom: 14, width: "100%",
+                    fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 1 } }, taps > 0 ? `${taps} ripples` : "")),
+        React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— FOCUS —————
 function Focus({ onBack }) {
-  const [stage, setStage] = useState("setup");
-  const [task, setTask] = useState("");
-  const [total, setTotal] = useState(15 * 60);
-  const [secs, setSecs] = useState(15 * 60);
-  const [running, setRunning] = useState(false);
-  const [drifts, setDrifts] = useState(0);
-
-  useEffect(() => {
-    if (!running || stage !== "run") return;
-    if (secs <= 0) { setRunning(false); setStage("done"); return; }
-    const t = setTimeout(() => setSecs((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [running, secs, stage]);
-
-  const start = (mins) => {
-    setTotal(mins * 60); setSecs(mins * 60); setRunning(true); setStage("run");
-  };
-  const waterLevel = stage === "run" ? secs / total : 1;
-
-  return (
-    <div style={{ textAlign: "center", maxWidth: 360, margin: "0 auto" }}>
-      {stage === "setup" && (
-        <>
-          <H2>Make time visible.</H2>
-          <Sub>
-            ADHD brains don't feel time passing — so we'll watch it drain instead.
-            Drifting off is expected. There's a no-shame button for coming back.
-          </Sub>
-          <Input value={task} onChange={setTask} autoFocus placeholder="What are you on? (optional)" />
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 18 }}>
-            {[10, 15, 25].map((m) => (
-              <Pill key={m} onClick={() => start(m)}>{m} min</Pill>
-            ))}
-          </div>
-        </>
-      )}
-      {stage === "run" && (
-        <>
-          {task.trim() && (
-            <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 20, color: C.paper, marginBottom: 4 }}>
-              {task}
-            </div>
-          )}
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 58, color: C.sea,
-            margin: "10px 0 18px", fontVariantNumeric: "tabular-nums" }}>
-            {fmt(secs)}
-          </div>
-          <div aria-hidden="true" style={{ position: "relative", height: 160, borderRadius: 16,
-            overflow: "hidden", border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.03)" }}>
-            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0,
-              height: `${waterLevel * 100}%`,
-              background: `linear-gradient(180deg, rgba(127,184,164,0.45), rgba(127,184,164,0.15))`,
-              transition: "height 1s linear" }} />
-          </div>
-          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, margin: "10px 0 18px", letterSpacing: 1 }}>
-            the pond drains as the sprint runs
-          </p>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-            <BigButton ghost onClick={() => setDrifts((d) => d + 1)}>I drifted — I'm back</BigButton>
-            <BigButton ghost onClick={() => setRunning(!running)}>{running ? "Pause" : "Resume"}</BigButton>
-          </div>
-          {drifts > 0 && (
-            <div style={{ marginTop: 14, fontFamily: "Karla", fontSize: 12, color: C.faint }}>
-              Came back {drifts} {drifts === 1 ? "time" : "times"}. Coming back IS the skill.
-            </div>
-          )}
-        </>
-      )}
-      {stage === "done" && (
-        <>
-          <BigWord>Sprint done.</BigWord>
-          <Sub>
-            {drifts === 0
-              ? "Clean run. Stand up, shake out, drink water before the next one."
-              : `You drifted ${drifts} ${drifts === 1 ? "time" : "times"} and came back every time. That's the whole skill — nobody focuses in a straight line.`}
-          </Sub>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-            <BigButton onClick={() => { setDrifts(0); setStage("setup"); }}>Another sprint</BigButton>
-            <BigButton ghost onClick={onBack}>Enough</BigButton>
-          </div>
-        </>
-      )}
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    const [stage, setStage] = useState("setup");
+    const [task, setTask] = useState("");
+    const [total, setTotal] = useState(15 * 60);
+    const [secs, setSecs] = useState(15 * 60);
+    const [running, setRunning] = useState(false);
+    const [drifts, setDrifts] = useState(0);
+    useEffect(() => {
+        if (!running || stage !== "run")
+            return;
+        if (secs <= 0) {
+            setRunning(false);
+            setStage("done");
+            return;
+        }
+        const t = setTimeout(() => setSecs((s) => s - 1), 1000);
+        return () => clearTimeout(t);
+    }, [running, secs, stage]);
+    const start = (mins) => {
+        setTotal(mins * 60);
+        setSecs(mins * 60);
+        setRunning(true);
+        setStage("run");
+    };
+    const waterLevel = stage === "run" ? secs / total : 1;
+    return (React.createElement("div", { style: { textAlign: "center", maxWidth: 360, margin: "0 auto" } },
+        stage === "setup" && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "Make time visible."),
+            React.createElement(Sub, null, "ADHD brains don't feel time passing \u2014 so we'll watch it drain instead. Drifting off is expected. There's a no-shame button for coming back."),
+            React.createElement(Input, { value: task, onChange: setTask, autoFocus: true, placeholder: "What are you on? (optional)" }),
+            React.createElement("div", { style: { display: "flex", gap: 8, justifyContent: "center", marginTop: 18 } }, [10, 15, 25].map((m) => (React.createElement(Pill, { key: m, onClick: () => start(m) },
+                m,
+                " min")))))),
+        stage === "run" && (React.createElement(React.Fragment, null,
+            task.trim() && (React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 20, color: C.paper, marginBottom: 4 } }, task)),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 58, color: C.sea,
+                    margin: "10px 0 18px", fontVariantNumeric: "tabular-nums" } }, fmt(secs)),
+            React.createElement("div", { "aria-hidden": "true", style: { position: "relative", height: 160, borderRadius: 16,
+                    overflow: "hidden", border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.03)" } },
+                React.createElement("div", { style: { position: "absolute", left: 0, right: 0, bottom: 0,
+                        height: `${waterLevel * 100}%`,
+                        background: `linear-gradient(180deg, rgba(127,184,164,0.45), rgba(127,184,164,0.15))`,
+                        transition: "height 1s linear" } })),
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 12, color: C.faint, margin: "10px 0 18px", letterSpacing: 1 } }, "the pond drains as the sprint runs"),
+            React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" } },
+                React.createElement(BigButton, { ghost: true, onClick: () => setDrifts((d) => d + 1) }, "I drifted \u2014 I'm back"),
+                React.createElement(BigButton, { ghost: true, onClick: () => setRunning(!running) }, running ? "Pause" : "Resume")),
+            drifts > 0 && (React.createElement("div", { style: { marginTop: 14, fontFamily: "Karla", fontSize: 12, color: C.faint } },
+                "Came back ",
+                drifts,
+                " ",
+                drifts === 1 ? "time" : "times",
+                ". Coming back IS the skill.")))),
+        stage === "done" && (React.createElement(React.Fragment, null,
+            React.createElement(BigWord, null, "Sprint done."),
+            React.createElement(Sub, null, drifts === 0
+                ? "Clean run. Stand up, shake out, drink water before the next one."
+                : `You drifted ${drifts} ${drifts === 1 ? "time" : "times"} and came back every time. That's the whole skill — nobody focuses in a straight line.`),
+            React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "center" } },
+                React.createElement(BigButton, { onClick: () => { setDrifts(0); setStage("setup"); } }, "Another sprint"),
+                React.createElement(BigButton, { ghost: true, onClick: onBack }, "Enough")))),
+        React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— EMBER —————
 const EMBER_POOL = [
-  { text: "Change position. Sit up, or move to a different spot.",
-    smaller: "Too big? Just turn your head and look at something else for ten seconds.",
-    why: "A body that moved an inch is easier to move a foot." },
-  { text: "Drink some water. Slowly is fine.",
-    smaller: "Too big? Just put a glass of water within reach for later.",
-    why: "Heavy days dehydrate quietly, and it makes everything heavier." },
-  { text: "Open a window, or stand where the light is, for a moment.",
-    smaller: "Too big? Open the curtains from where you are.",
-    why: "Light and air reach places words can't." },
-  { text: "Put on one song. Not a productive one — one you actually like.",
-    smaller: "Too big? Hum three notes of anything.",
-    why: "Music can move a mood a few degrees when nothing else will." },
-  { text: "Send one message to one person. Even just \"hey\". No explanation needed.",
-    smaller: "Too big? Just open the chat and look at their name. That's a start.",
-    why: "Heaviness lies and says you're alone. One thread out disproves it." },
-  { text: "Wash your face with cold water.",
-    smaller: "Too big? Press a cold can or bottle against your cheek.",
-    why: "Cold on the face flips an ancient calming reflex. It's biology, not willpower." },
-  { text: "Step outside the door. You don't have to go anywhere.",
-    smaller: "Too big? Stand at the open door and breathe the outside air once.",
-    why: "The room you've been heavy in holds the heaviness. Any other air helps." },
-  { text: "Eat something small. Anything counts today.",
-    smaller: "Too big? Put one snack next to you for when you're ready.",
-    why: "An unfed brain reads everything as worse than it is." },
-  { text: "Put one single thing back where it belongs.",
-    smaller: "Too big? Just pick it up and put it down again. Contact counts.",
-    why: "One square meter of order pushes back against the fog." },
+    { text: "Change position. Sit up, or move to a different spot.",
+        smaller: "Too big? Just turn your head and look at something else for ten seconds.",
+        why: "A body that moved an inch is easier to move a foot." },
+    { text: "Drink some water. Slowly is fine.",
+        smaller: "Too big? Just put a glass of water within reach for later.",
+        why: "Heavy days dehydrate quietly, and it makes everything heavier." },
+    { text: "Open a window, or stand where the light is, for a moment.",
+        smaller: "Too big? Open the curtains from where you are.",
+        why: "Light and air reach places words can't." },
+    { text: "Put on one song. Not a productive one — one you actually like.",
+        smaller: "Too big? Hum three notes of anything.",
+        why: "Music can move a mood a few degrees when nothing else will." },
+    { text: "Send one message to one person. Even just \"hey\". No explanation needed.",
+        smaller: "Too big? Just open the chat and look at their name. That's a start.",
+        why: "Heaviness lies and says you're alone. One thread out disproves it." },
+    { text: "Wash your face with cold water.",
+        smaller: "Too big? Press a cold can or bottle against your cheek.",
+        why: "Cold on the face flips an ancient calming reflex. It's biology, not willpower." },
+    { text: "Step outside the door. You don't have to go anywhere.",
+        smaller: "Too big? Stand at the open door and breathe the outside air once.",
+        why: "The room you've been heavy in holds the heaviness. Any other air helps." },
+    { text: "Eat something small. Anything counts today.",
+        smaller: "Too big? Put one snack next to you for when you're ready.",
+        why: "An unfed brain reads everything as worse than it is." },
+    { text: "Put one single thing back where it belongs.",
+        smaller: "Too big? Just pick it up and put it down again. Contact counts.",
+        why: "One square meter of order pushes back against the fog." },
 ];
-
 function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function Ember({ onBack }) {
-  const [embers, setEmbers] = useState([]);
-  const [idx, setIdx] = useState(-1);
-  const [litCount, setLitCount] = useState(0);
-  const [allTime, setAllTime] = useState(null);
-  const [showSmaller, setShowSmaller] = useState(false);
-  const done = embers.length > 0 && idx >= embers.length;
-
-  useEffect(() => { sGet("sw-embers-total", 0).then(setAllTime); }, []);
-
-  const begin = () => {
-    setEmbers(shuffle(EMBER_POOL).slice(0, 5));
-    setIdx(0); setLitCount(0); setShowSmaller(false);
-  };
-
-  const next = (didIt) => {
-    if (didIt) {
-      setLitCount((c) => c + 1);
-      setAllTime((t) => {
-        const nt = (t || 0) + 1;
-        sSet("sw-embers-total", nt);
-        return nt;
-      });
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
     }
-    setShowSmaller(false);
-    setIdx((i) => i + 1);
-  };
-
-  return (
-    <div style={{ textAlign: "center", maxWidth: 360, margin: "0 auto" }}>
-      {idx === -1 && (
-        <>
-          <H2>Heavy days don't need big moves.</H2>
-          <Sub>
-            When everything is grey, motivation won't come first — a tiny action comes first,
-            and the feeling follows it, slowly. Five embers, drawn fresh each time.
-            Every one has an even smaller version. Skipping is allowed. One is enough.
-          </Sub>
-          {allTime > 0 && (
-            <p style={{ fontFamily: "Karla", fontSize: 12.5, color: C.amber, marginBottom: 20 }}>
-              You've lit {allTime} {allTime === 1 ? "ember" : "embers"} all-time. Every one was real.
-            </p>
-          )}
-          <BigButton warm onClick={begin}>Light the first one</BigButton>
-        </>
-      )}
-
-      {idx >= 0 && !done && (
-        <>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 28 }}>
-            {embers.map((e, i) => (
-              <div key={i} aria-hidden="true" style={{ width: 10, height: 10, borderRadius: "50%",
-                background: i < idx ? C.amber : "transparent",
-                border: `1px solid ${i <= idx ? C.amber : C.faint}`,
-                boxShadow: i < idx ? "0 0 10px rgba(216,179,106,0.5)" : "none" }} />
-            ))}
-          </div>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 22, color: C.paper,
-            lineHeight: 1.5, minHeight: 80 }}>
-            {embers[idx].text}
-          </div>
-          <p style={{ fontFamily: "Karla", fontSize: 13, color: C.mist, margin: "12px 0 8px", fontStyle: "italic" }}>
-            {embers[idx].why}
-          </p>
-          {showSmaller ? (
-            <p style={{ fontFamily: "Karla", fontSize: 13.5, color: C.amber, margin: "10px 0 20px",
-              animation: "fadeIn 0.4s ease" }}>
-              {embers[idx].smaller}
-            </p>
-          ) : (
-            <button onClick={() => setShowSmaller(true)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: C.faint,
-                fontFamily: "Karla", fontSize: 12.5, textDecoration: "underline",
-                textUnderlineOffset: 3, margin: "6px 0 18px" }}>
-              too big right now?
-            </button>
-          )}
-          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-            <BigButton warm onClick={() => next(true)}>Did it</BigButton>
-            <BigButton ghost onClick={() => next(false)}>Skip — no guilt</BigButton>
-          </div>
-        </>
-      )}
-
-      {done && (
-        <>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", margin: "20px 0" }}>
-            {Array.from({ length: litCount }).map((_, i) => (
-              <div key={i} style={{ width: 10, height: 10, borderRadius: "50%",
-                background: C.amber, boxShadow: "0 0 12px rgba(216,179,106,0.6)" }} />
-            ))}
-          </div>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 26, color: C.paper }}>
-            {litCount > 0 ? `${litCount} ${litCount === 1 ? "ember" : "embers"} lit.` : "You showed up anyway."}
-          </div>
-          <Sub>
-            {litCount > 0
-              ? "That's real. On a heavy day, small things cost more and count double."
-              : "Reading through them on a day like this is not nothing. Come back later — they'll still be here."}
-          </Sub>
-          {litCount > 0 && (
-            <p style={{ fontFamily: "Karla", fontSize: 13, color: C.amber, marginBottom: 8 }}>
-              Worth keeping? Drop one in Proof — future you will need the receipt.
-            </p>
-          )}
-          <p style={{ fontFamily: "Karla", fontSize: 12.5, color: C.faint, margin: "14px 0 24px", lineHeight: 1.6 }}>
-            One honest note: if the heaviness has been sitting on you for weeks, it deserves more
-            than a pond — tell a doctor or someone who loves you. This is for right now, not instead of that.
-          </p>
-          <BigButton ghost onClick={begin}>Five fresh embers</BigButton>
-        </>
-      )}
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    return a;
 }
-
+function Ember({ onBack }) {
+    const [embers, setEmbers] = useState([]);
+    const [idx, setIdx] = useState(-1);
+    const [litCount, setLitCount] = useState(0);
+    const [allTime, setAllTime] = useState(null);
+    const [showSmaller, setShowSmaller] = useState(false);
+    const done = embers.length > 0 && idx >= embers.length;
+    useEffect(() => { sGet("sw-embers-total", 0).then(setAllTime); }, []);
+    const begin = () => {
+        setEmbers(shuffle(EMBER_POOL).slice(0, 5));
+        setIdx(0);
+        setLitCount(0);
+        setShowSmaller(false);
+    };
+    const next = (didIt) => {
+        if (didIt) {
+            setLitCount((c) => c + 1);
+            setAllTime((t) => {
+                const nt = (t || 0) + 1;
+                sSet("sw-embers-total", nt);
+                return nt;
+            });
+        }
+        setShowSmaller(false);
+        setIdx((i) => i + 1);
+    };
+    return (React.createElement("div", { style: { textAlign: "center", maxWidth: 360, margin: "0 auto" } },
+        idx === -1 && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "Heavy days don't need big moves."),
+            React.createElement(Sub, null, "When everything is grey, motivation won't come first \u2014 a tiny action comes first, and the feeling follows it, slowly. Five embers, drawn fresh each time. Every one has an even smaller version. Skipping is allowed. One is enough."),
+            allTime > 0 && (React.createElement("p", { style: { fontFamily: "Karla", fontSize: 12.5, color: C.amber, marginBottom: 20 } },
+                "You've lit ",
+                allTime,
+                " ",
+                allTime === 1 ? "ember" : "embers",
+                " all-time. Every one was real.")),
+            React.createElement(BigButton, { warm: true, onClick: begin }, "Light the first one"))),
+        idx >= 0 && !done && (React.createElement(React.Fragment, null,
+            React.createElement("div", { style: { display: "flex", gap: 8, justifyContent: "center", marginBottom: 28 } }, embers.map((e, i) => (React.createElement("div", { key: i, "aria-hidden": "true", style: { width: 10, height: 10, borderRadius: "50%",
+                    background: i < idx ? C.amber : "transparent",
+                    border: `1px solid ${i <= idx ? C.amber : C.faint}`,
+                    boxShadow: i < idx ? "0 0 10px rgba(216,179,106,0.5)" : "none" } })))),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 22, color: C.paper,
+                    lineHeight: 1.5, minHeight: 80 } }, embers[idx].text),
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 13, color: C.mist, margin: "12px 0 8px", fontStyle: "italic" } }, embers[idx].why),
+            showSmaller ? (React.createElement("p", { style: { fontFamily: "Karla", fontSize: 13.5, color: C.amber, margin: "10px 0 20px",
+                    animation: "fadeIn 0.4s ease" } }, embers[idx].smaller)) : (React.createElement("button", { onClick: () => setShowSmaller(true), style: { background: "none", border: "none", cursor: "pointer", color: C.faint,
+                    fontFamily: "Karla", fontSize: 12.5, textDecoration: "underline",
+                    textUnderlineOffset: 3, margin: "6px 0 18px" } }, "too big right now?")),
+            React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "center" } },
+                React.createElement(BigButton, { warm: true, onClick: () => next(true) }, "Did it"),
+                React.createElement(BigButton, { ghost: true, onClick: () => next(false) }, "Skip \u2014 no guilt")))),
+        done && (React.createElement(React.Fragment, null,
+            React.createElement("div", { style: { display: "flex", gap: 8, justifyContent: "center", margin: "20px 0" } }, Array.from({ length: litCount }).map((_, i) => (React.createElement("div", { key: i, style: { width: 10, height: 10, borderRadius: "50%",
+                    background: C.amber, boxShadow: "0 0 12px rgba(216,179,106,0.6)" } })))),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 26, color: C.paper } }, litCount > 0 ? `${litCount} ${litCount === 1 ? "ember" : "embers"} lit.` : "You showed up anyway."),
+            React.createElement(Sub, null, litCount > 0
+                ? "That's real. On a heavy day, small things cost more and count double."
+                : "Reading through them on a day like this is not nothing. Come back later — they'll still be here."),
+            litCount > 0 && (React.createElement("p", { style: { fontFamily: "Karla", fontSize: 13, color: C.amber, marginBottom: 8 } }, "Worth keeping? Drop one in Proof \u2014 future you will need the receipt.")),
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 12.5, color: C.faint, margin: "14px 0 24px", lineHeight: 1.6 } }, "One honest note: if the heaviness has been sitting on you for weeks, it deserves more than a pond \u2014 tell a doctor or someone who loves you. This is for right now, not instead of that."),
+            React.createElement(BigButton, { ghost: true, onClick: begin }, "Five fresh embers"))),
+        React.createElement(BackLink, { onBack: onBack })));
+}
 // ————— PROOF —————
 function Proof({ onBack }) {
-  const [entries, setEntries] = useState(null);
-  const [text, setText] = useState("");
-  const [shown, setShown] = useState(null);
-  const [view, setView] = useState("main");
-
-  useEffect(() => { sGet("sw-proof", []).then(setEntries); }, []);
-
-  const add = () => {
-    const t = text.trim();
-    if (!t || !entries) return;
-    const next = [...entries, { t, d: localDate() }];
-    setEntries(next);
-    sSet("sw-proof", next);
-    setText("");
-  };
-
-  const removeAt = (origIdx) => {
-    const next = entries.filter((_, i) => i !== origIdx);
-    setEntries(next);
-    sSet("sw-proof", next);
-    if (shown && entries[origIdx] && shown.t === entries[origIdx].t) setShown(null);
-  };
-
-  const drawOne = () => {
-    if (!entries || entries.length === 0) return;
-    let pick = entries[Math.floor(Math.random() * entries.length)];
-    if (entries.length > 1 && shown && pick.t === shown.t) {
-      pick = entries[(entries.indexOf(pick) + 1) % entries.length];
+    const [entries, setEntries] = useState(null);
+    const [text, setText] = useState("");
+    const [shown, setShown] = useState(null);
+    const [view, setView] = useState("main");
+    useEffect(() => { sGet("sw-proof", []).then(setEntries); }, []);
+    const add = () => {
+        const t = text.trim();
+        if (!t || !entries)
+            return;
+        const next = [...entries, { t, d: localDate() }];
+        setEntries(next);
+        sSet("sw-proof", next);
+        setText("");
+    };
+    const removeAt = (origIdx) => {
+        const next = entries.filter((_, i) => i !== origIdx);
+        setEntries(next);
+        sSet("sw-proof", next);
+        if (shown && entries[origIdx] && shown.t === entries[origIdx].t)
+            setShown(null);
+    };
+    const drawOne = () => {
+        if (!entries || entries.length === 0)
+            return;
+        let pick = entries[Math.floor(Math.random() * entries.length)];
+        if (entries.length > 1 && shown && pick.t === shown.t) {
+            pick = entries[(entries.indexOf(pick) + 1) % entries.length];
+        }
+        setShown(pick);
+    };
+    if (entries === null) {
+        return React.createElement("div", { style: { textAlign: "center", fontFamily: "Karla", color: C.faint, paddingTop: 40 } }, "opening the jar\u2026");
     }
-    setShown(pick);
-  };
-
-  if (entries === null) {
-    return <div style={{ textAlign: "center", fontFamily: "Karla", color: C.faint, paddingTop: 40 }}>opening the jar…</div>;
-  }
-
-  return (
-    <div style={{ textAlign: "center", maxWidth: 380, margin: "0 auto" }}>
-      {view === "main" && (
-        <>
-          <H2>Keep receipts on yourself.</H2>
-          <Sub>
-            Depression has a selective memory: it files away every stumble and deletes every win.
-            This jar is the counter-archive. Drop in small true things — done, survived, handled,
-            not ruined. On grey days, draw one out. Past you doesn't lie.
-          </Sub>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Input value={text} onChange={setText} onEnter={add}
-              placeholder="One small true thing from today…" />
-            <button onClick={add}
-              style={{ padding: "0 20px", borderRadius: 12, border: "none", cursor: "pointer",
-                background: C.amber, color: C.ink, fontFamily: "Karla", fontWeight: 700 }}>
-              Drop in
-            </button>
-          </div>
-          {entries.length > 0 && (
-            <div style={{ marginTop: 30 }}>
-              <div style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 1, marginBottom: 14 }}>
-                {entries.length} {entries.length === 1 ? "receipt" : "receipts"} in the jar
-              </div>
-              {shown && (
-                <div style={{ padding: "20px 22px", borderRadius: 16, marginBottom: 16,
-                  border: `1px solid rgba(216,179,106,0.4)`, background: "rgba(216,179,106,0.07)",
-                  animation: "fadeIn 0.5s ease" }}>
-                  <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 19,
-                    color: C.paper, lineHeight: 1.5 }}>
-                    {shown.t}
-                  </div>
-                  <div style={{ fontFamily: "Karla", fontSize: 11.5, color: C.amber, marginTop: 10, letterSpacing: 1 }}>
-                    — past you, {shown.d}
-                  </div>
-                </div>
-              )}
-              <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-                <BigButton warm onClick={drawOne}>{shown ? "Draw another" : "Draw one out"}</BigButton>
-                <BigButton ghost onClick={() => setView("all")}>See all</BigButton>
-              </div>
-            </div>
-          )}
-          {entries.length === 0 && (
-            <p style={{ fontFamily: "Karla", fontSize: 13, color: C.faint, marginTop: 26 }}>
-              The jar is empty — which only means the archive starts today.
-              "Got out of bed on a bad day" is a valid receipt.
-            </p>
-          )}
-        </>
-      )}
-      {view === "all" && (
-        <>
-          <H2>The whole archive.</H2>
-          <Sub>Read it like evidence, because it is.</Sub>
-          <div style={{ textAlign: "left", maxHeight: 380, overflowY: "auto", paddingRight: 4 }}>
-            {[...entries].reverse().map((e, i) => (
-              <div key={i} style={{ padding: "12px 16px", borderRadius: 12, marginBottom: 8,
-                border: `1px solid ${C.faint}`, position: "relative" }}>
-                <div style={{ fontFamily: "Karla", fontSize: 14.5, color: C.paper, lineHeight: 1.5, paddingRight: 24 }}>{e.t}</div>
-                <div style={{ fontFamily: "Karla", fontSize: 11, color: C.faint, marginTop: 5 }}>{e.d}</div>
-                <button onClick={() => removeAt(entries.length - 1 - i)} aria-label="Remove receipt"
-                  style={{ position: "absolute", top: 8, right: 10, background: "none", border: "none",
-                    cursor: "pointer", color: C.faint, fontFamily: "Karla", fontSize: 14 }}>
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 18 }}>
-            <BigButton ghost onClick={() => setView("main")}>Back to the jar</BigButton>
-          </div>
-        </>
-      )}
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    return (React.createElement("div", { style: { textAlign: "center", maxWidth: 380, margin: "0 auto" } },
+        view === "main" && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "Keep receipts on yourself."),
+            React.createElement(Sub, null, "Depression has a selective memory: it files away every stumble and deletes every win. This jar is the counter-archive. Drop in small true things \u2014 done, survived, handled, not ruined. On grey days, draw one out. Past you doesn't lie."),
+            React.createElement("div", { style: { display: "flex", gap: 8 } },
+                React.createElement(Input, { value: text, onChange: setText, onEnter: add, placeholder: "One small true thing from today\u2026" }),
+                React.createElement("button", { onClick: add, style: { padding: "0 20px", borderRadius: 12, border: "none", cursor: "pointer",
+                        background: C.amber, color: C.ink, fontFamily: "Karla", fontWeight: 700 } }, "Drop in")),
+            entries.length > 0 && (React.createElement("div", { style: { marginTop: 30 } },
+                React.createElement("div", { style: { fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 1, marginBottom: 14 } },
+                    entries.length,
+                    " ",
+                    entries.length === 1 ? "receipt" : "receipts",
+                    " in the jar"),
+                shown && (React.createElement("div", { style: { padding: "20px 22px", borderRadius: 16, marginBottom: 16,
+                        border: `1px solid rgba(216,179,106,0.4)`, background: "rgba(216,179,106,0.07)",
+                        animation: "fadeIn 0.5s ease" } },
+                    React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 19,
+                            color: C.paper, lineHeight: 1.5 } }, shown.t),
+                    React.createElement("div", { style: { fontFamily: "Karla", fontSize: 11.5, color: C.amber, marginTop: 10, letterSpacing: 1 } },
+                        "\u2014 past you, ",
+                        shown.d))),
+                React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "center" } },
+                    React.createElement(BigButton, { warm: true, onClick: drawOne }, shown ? "Draw another" : "Draw one out"),
+                    React.createElement(BigButton, { ghost: true, onClick: () => setView("all") }, "See all")))),
+            entries.length === 0 && (React.createElement("p", { style: { fontFamily: "Karla", fontSize: 13, color: C.faint, marginTop: 26 } }, "The jar is empty \u2014 which only means the archive starts today. \"Got out of bed on a bad day\" is a valid receipt.")))),
+        view === "all" && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "The whole archive."),
+            React.createElement(Sub, null, "Read it like evidence, because it is."),
+            React.createElement("div", { style: { textAlign: "left", maxHeight: 380, overflowY: "auto", paddingRight: 4 } }, [...entries].reverse().map((e, i) => (React.createElement("div", { key: i, style: { padding: "12px 16px", borderRadius: 12, marginBottom: 8,
+                    border: `1px solid ${C.faint}`, position: "relative" } },
+                React.createElement("div", { style: { fontFamily: "Karla", fontSize: 14.5, color: C.paper, lineHeight: 1.5, paddingRight: 24 } }, e.t),
+                React.createElement("div", { style: { fontFamily: "Karla", fontSize: 11, color: C.faint, marginTop: 5 } }, e.d),
+                React.createElement("button", { onClick: () => removeAt(entries.length - 1 - i), "aria-label": "Remove receipt", style: { position: "absolute", top: 8, right: 10, background: "none", border: "none",
+                        cursor: "pointer", color: C.faint, fontFamily: "Karla", fontSize: 14 } }, "\u00D7"))))),
+            React.createElement("div", { style: { marginTop: 18 } },
+                React.createElement(BigButton, { ghost: true, onClick: () => setView("main") }, "Back to the jar")))),
+        React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— UNTANGLE —————
 const ANCHOR_PROMPTS = [
-  "What do your feet feel right now?",
-  "What temperature is the air on your skin?",
-  "What's the furthest sound you can hear?",
-  "Where is your body touching the chair or floor?",
-  "Find one thing in the room with a texture. Look at it properly.",
-  "What can you smell, even faintly?",
+    "What do your feet feel right now?",
+    "What temperature is the air on your skin?",
+    "What's the furthest sound you can hear?",
+    "Where is your body touching the chair or floor?",
+    "Find one thing in the room with a texture. Look at it properly.",
+    "What can you smell, even faintly?",
 ];
-
 function Untangle({ onBack }) {
-  const [stage, setStage] = useState("loop");
-  const [loop, setLoop] = useState("");
-  const [anchorIdx, setAnchorIdx] = useState(0);
-  const [anchorSecs, setAnchorSecs] = useState(0);
-
-  useEffect(() => {
-    if (stage !== "anchor") return;
-    if (anchorSecs <= 0) {
-      if (anchorIdx + 1 >= 4) { setStage("done"); return; }
-      setAnchorIdx((i) => i + 1);
-      setAnchorSecs(10);
-      return;
-    }
-    const t = setTimeout(() => setAnchorSecs((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [stage, anchorSecs, anchorIdx]);
-
-  const startAnchor = () => { setAnchorIdx(0); setAnchorSecs(10); setStage("anchor"); };
-
-  return (
-    <div style={{ textAlign: "center", maxWidth: 370, margin: "0 auto" }}>
-      {stage === "loop" && (
-        <>
-          <H2>Same thought again?</H2>
-          <Sub>
-            Rumination feels like thinking, but it's a groove, not a message.
-            If it were going to produce an answer, it would have by now.
-            Write the loop in one line.
-          </Sub>
-          <Input value={loop} onChange={setLoop} autoFocus placeholder="The thought that keeps coming back…"
-            onEnter={() => loop.trim() && setStage("count")} />
-          <div style={{ marginTop: 18 }}>
-            <BigButton onClick={() => loop.trim() && setStage("count")}>Name it</BigButton>
-          </div>
-        </>
-      )}
-      {stage === "count" && (
-        <>
-          <H2>How many times has this exact thought visited today?</H2>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 24, flexWrap: "wrap" }}>
-            {["First time", "A few", "Dozens", "Lost count"].map((o) => (
-              <Pill key={o} onClick={() => setStage("park")}>{o}</Pill>
-            ))}
-          </div>
-          <Sub style={{ marginTop: 24 }}>Be honest — no one's watching.</Sub>
-        </>
-      )}
-      {stage === "park" && (
-        <>
-          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
-            textTransform: "uppercase" }}>the loop</p>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 21, color: C.paper,
-            margin: "14px 0 8px", lineHeight: 1.5, opacity: 0.75 }}>
-            "{loop}"
-          </div>
-          <Sub>
-            Here's the trick that actually works: don't fight it, <em>schedule</em> it.
-            Give it an appointment — tonight, 15 minutes, pen and paper, deliberately.
-            A parked thought loses its emergency status. When it knocks again before then,
-            the answer is the same: <em>"You have an appointment. Not now."</em>
-          </Sub>
-          <BigButton onClick={startAnchor}>Park it — and land me back here</BigButton>
-        </>
-      )}
-      {stage === "anchor" && (
-        <>
-          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
-            textTransform: "uppercase", marginBottom: 24 }}>coming back to the room</p>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 23, color: C.paper,
-            lineHeight: 1.5, minHeight: 80 }}>
-            {ANCHOR_PROMPTS[anchorIdx % ANCHOR_PROMPTS.length]}
-          </div>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 48, color: C.sea, margin: "20px 0" }}>
-            {anchorSecs}
-          </div>
-          <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} style={{ width: 22, height: 3, borderRadius: 2,
-                background: i < anchorIdx ? C.sea : i === anchorIdx ? C.mist : C.faint }} />
-            ))}
-          </div>
-        </>
-      )}
-      {stage === "done" && (
-        <>
-          <BigWord>Parked.</BigWord>
-          <Sub>
-            The loop will knock again — that's what grooves do. Same answer every time:
-            it has an appointment, and you're busy being in the room.
-          </Sub>
-          <BigButton ghost onClick={() => { setLoop(""); setStage("loop"); }}>Another loop</BigButton>
-        </>
-      )}
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    const [stage, setStage] = useState("loop");
+    const [loop, setLoop] = useState("");
+    const [anchorIdx, setAnchorIdx] = useState(0);
+    const [anchorSecs, setAnchorSecs] = useState(0);
+    useEffect(() => {
+        if (stage !== "anchor")
+            return;
+        if (anchorSecs <= 0) {
+            if (anchorIdx + 1 >= 4) {
+                setStage("done");
+                return;
+            }
+            setAnchorIdx((i) => i + 1);
+            setAnchorSecs(10);
+            return;
+        }
+        const t = setTimeout(() => setAnchorSecs((s) => s - 1), 1000);
+        return () => clearTimeout(t);
+    }, [stage, anchorSecs, anchorIdx]);
+    const startAnchor = () => { setAnchorIdx(0); setAnchorSecs(10); setStage("anchor"); };
+    return (React.createElement("div", { style: { textAlign: "center", maxWidth: 370, margin: "0 auto" } },
+        stage === "loop" && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "Same thought again?"),
+            React.createElement(Sub, null, "Rumination feels like thinking, but it's a groove, not a message. If it were going to produce an answer, it would have by now. Write the loop in one line."),
+            React.createElement(Input, { value: loop, onChange: setLoop, autoFocus: true, placeholder: "The thought that keeps coming back\u2026", onEnter: () => loop.trim() && setStage("count") }),
+            React.createElement("div", { style: { marginTop: 18 } },
+                React.createElement(BigButton, { onClick: () => loop.trim() && setStage("count") }, "Name it")))),
+        stage === "count" && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "How many times has this exact thought visited today?"),
+            React.createElement("div", { style: { display: "flex", gap: 8, justifyContent: "center", marginTop: 24, flexWrap: "wrap" } }, ["First time", "A few", "Dozens", "Lost count"].map((o) => (React.createElement(Pill, { key: o, onClick: () => setStage("park") }, o)))),
+            React.createElement(Sub, { style: { marginTop: 24 } }, "Be honest \u2014 no one's watching."))),
+        stage === "park" && (React.createElement(React.Fragment, null,
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
+                    textTransform: "uppercase" } }, "the loop"),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 21, color: C.paper,
+                    margin: "14px 0 8px", lineHeight: 1.5, opacity: 0.75 } },
+                "\"",
+                loop,
+                "\""),
+            React.createElement(Sub, null,
+                "Here's the trick that actually works: don't fight it, ",
+                React.createElement("em", null, "schedule"),
+                " it. Give it an appointment \u2014 tonight, 15 minutes, pen and paper, deliberately. A parked thought loses its emergency status. When it knocks again before then, the answer is the same: ",
+                React.createElement("em", null, "\"You have an appointment. Not now.\"")),
+            React.createElement(BigButton, { onClick: startAnchor }, "Park it \u2014 and land me back here"))),
+        stage === "anchor" && (React.createElement(React.Fragment, null,
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
+                    textTransform: "uppercase", marginBottom: 24 } }, "coming back to the room"),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 23, color: C.paper,
+                    lineHeight: 1.5, minHeight: 80 } }, ANCHOR_PROMPTS[anchorIdx % ANCHOR_PROMPTS.length]),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 48, color: C.sea, margin: "20px 0" } }, anchorSecs),
+            React.createElement("div", { style: { display: "flex", gap: 6, justifyContent: "center" } }, [0, 1, 2, 3].map((i) => (React.createElement("div", { key: i, style: { width: 22, height: 3, borderRadius: 2,
+                    background: i < anchorIdx ? C.sea : i === anchorIdx ? C.mist : C.faint } })))))),
+        stage === "done" && (React.createElement(React.Fragment, null,
+            React.createElement(BigWord, null, "Parked."),
+            React.createElement(Sub, null, "The loop will knock again \u2014 that's what grooves do. Same answer every time: it has an appointment, and you're busy being in the room."),
+            React.createElement(BigButton, { ghost: true, onClick: () => { setLoop(""); setStage("loop"); } }, "Another loop"))),
+        React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— SOUND — ambient noise via Tone.js —————
 function Sound({ onBack }) {
-  const [active, setActive] = useState(null); // 'deep' | 'rain' | null
-  const [vol, setVol] = useState(60);
-  const noiseRef = useRef(null);
-  const filterRef = useRef(null);
-
-  const stop = () => {
-    try {
-      if (noiseRef.current) { noiseRef.current.stop(); noiseRef.current.dispose(); noiseRef.current = null; }
-      if (filterRef.current) { filterRef.current.dispose(); filterRef.current = null; }
-    } catch {}
-    setActive(null);
-  };
-
-  const play = async (kind) => {
-    stop();
-    try {
-      await Tone.start();
-      const noise = new Tone.Noise(kind === "deep" ? "brown" : "pink");
-      const filter = kind === "deep"
-        ? new Tone.Filter(400, "lowpass")
-        : new Tone.Filter(900, "highpass");
-      noise.volume.value = -34 + (vol / 100) * 26;
-      noise.connect(filter);
-      filter.toDestination();
-      noise.start();
-      noiseRef.current = noise;
-      filterRef.current = filter;
-      setActive(kind);
-    } catch {}
-  };
-
-  useEffect(() => {
-    if (noiseRef.current) noiseRef.current.volume.value = -34 + (vol / 100) * 26;
-  }, [vol]);
-
-  useEffect(() => stop, []); // cleanup on unmount
-
-  return (
-    <div style={{ textAlign: "center", maxWidth: 340, margin: "0 auto" }}>
-      <H2>Cover the noise with noise.</H2>
-      <Sub>
-        Steady sound masks the small unpredictable ones that yank ADHD attention around —
-        and gives a spiraling mind something even to lean on. Plays while you use the other tools.
-      </Sub>
-      <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 26 }}>
-        <Pill active={active === "deep"} onClick={() => active === "deep" ? stop() : play("deep")}>
-          Deep water
-        </Pill>
-        <Pill active={active === "rain"} onClick={() => active === "rain" ? stop() : play("rain")}>
-          Rain on the pond
-        </Pill>
-      </div>
-      {active && (
-        <div style={{ animation: "fadeIn 0.4s ease" }}>
-          <label style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 1, display: "block", marginBottom: 8 }}>
-            volume
-          </label>
-          <input type="range" min="0" max="100" value={vol}
-            onChange={(e) => setVol(Number(e.target.value))}
-            style={{ width: "80%" }} aria-label="Volume" />
-          <div style={{ marginTop: 22 }}>
-            <BigButton ghost onClick={stop}>Silence</BigButton>
-          </div>
-        </div>
-      )}
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    const [active, setActive] = useState(null); // 'deep' | 'rain' | null
+    const [vol, setVol] = useState(60);
+    const noiseRef = useRef(null);
+    const filterRef = useRef(null);
+    const stop = () => {
+        try {
+            if (noiseRef.current) {
+                noiseRef.current.stop();
+                noiseRef.current.dispose();
+                noiseRef.current = null;
+            }
+            if (filterRef.current) {
+                filterRef.current.dispose();
+                filterRef.current = null;
+            }
+        }
+        catch { }
+        setActive(null);
+    };
+    const play = async (kind) => {
+        stop();
+        try {
+            await Tone.start();
+            const noise = new Tone.Noise(kind === "deep" ? "brown" : "pink");
+            const filter = kind === "deep"
+                ? new Tone.Filter(400, "lowpass")
+                : new Tone.Filter(900, "highpass");
+            noise.volume.value = -34 + (vol / 100) * 26;
+            noise.connect(filter);
+            filter.toDestination();
+            noise.start();
+            noiseRef.current = noise;
+            filterRef.current = filter;
+            setActive(kind);
+        }
+        catch { }
+    };
+    useEffect(() => {
+        if (noiseRef.current)
+            noiseRef.current.volume.value = -34 + (vol / 100) * 26;
+    }, [vol]);
+    useEffect(() => stop, []); // cleanup on unmount
+    return (React.createElement("div", { style: { textAlign: "center", maxWidth: 340, margin: "0 auto" } },
+        React.createElement(H2, null, "Cover the noise with noise."),
+        React.createElement(Sub, null, "Steady sound masks the small unpredictable ones that yank ADHD attention around \u2014 and gives a spiraling mind something even to lean on. Plays while you use the other tools."),
+        React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "center", marginBottom: 26 } },
+            React.createElement(Pill, { active: active === "deep", onClick: () => active === "deep" ? stop() : play("deep") }, "Deep water"),
+            React.createElement(Pill, { active: active === "rain", onClick: () => active === "rain" ? stop() : play("rain") }, "Rain on the pond")),
+        active && (React.createElement("div", { style: { animation: "fadeIn 0.4s ease" } },
+            React.createElement("label", { style: { fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 1, display: "block", marginBottom: 8 } }, "volume"),
+            React.createElement("input", { type: "range", min: "0", max: "100", value: vol, onChange: (e) => setVol(Number(e.target.value)), style: { width: "80%" }, "aria-label": "Volume" }),
+            React.createElement("div", { style: { marginTop: 22 } },
+                React.createElement(BigButton, { ghost: true, onClick: stop }, "Silence")))),
+        React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— SPIRAL — everything at once —————
 const SPIRAL_BREATH = [
-  { label: "Inhale", secs: 2 }, { label: "Top up", secs: 1 }, { label: "Long sigh out", secs: 6 },
+    { label: "Inhale", secs: 2 }, { label: "Top up", secs: 1 }, { label: "Long sigh out", secs: 6 },
 ];
 const FEELINGS = [
-  { f: "Angry", to: "move", note: "Anger is fuel with nowhere to go. Burn it off first — 90 seconds of Move." },
-  { f: "Sad", to: "ember", note: "Sad wants one small warm thing, not a lecture. Ember has five." },
-  { f: "Scared", to: "ground", note: "Fear lives in the future. Ground drags you back to the room, sense by sense." },
-  { f: "Tired", to: "ember", note: "Tired gets the lowest bar there is. Ember, smallest versions only." },
-  { f: "Wired", to: "move", note: "That buzz needs out through the body before anything else works." },
-  { f: "No idea", to: "ground", note: "Not knowing is fine. Start with the senses and it usually introduces itself." },
+    { f: "Angry", to: "move", note: "Anger is fuel with nowhere to go. Burn it off first — 90 seconds of Move." },
+    { f: "Sad", to: "ember", note: "Sad wants one small warm thing, not a lecture. Ember has five." },
+    { f: "Scared", to: "ground", note: "Fear lives in the future. Ground drags you back to the room, sense by sense." },
+    { f: "Tired", to: "ember", note: "Tired gets the lowest bar there is. Ember, smallest versions only." },
+    { f: "Wired", to: "move", note: "That buzz needs out through the body before anything else works." },
+    { f: "No idea", to: "ground", note: "Not knowing is fine. Start with the senses and it usually introduces itself." },
 ];
-
 function Spiral({ onBack, go }) {
-  const [stage, setStage] = useState("intro"); // intro | breath | shake | name | route
-  const [cycle, setCycle] = useState(0);
-  const [phaseIdx, setPhaseIdx] = useState(0);
-  const [secs, setSecs] = useState(0);
-  const [picked, setPicked] = useState(null);
-
-  // breath engine: 3 cycles of double-sigh
-  useEffect(() => {
-    if (stage !== "breath") return;
-    if (secs > 0) {
-      const t = setTimeout(() => setSecs((s) => s - 1), 1000);
-      return () => clearTimeout(t);
-    }
-    const nextPhase = phaseIdx + 1;
-    if (nextPhase >= SPIRAL_BREATH.length) {
-      if (cycle + 1 >= 3) { setStage("shake"); setSecs(20); return; }
-      setCycle((c) => c + 1); setPhaseIdx(0); setSecs(SPIRAL_BREATH[0].secs);
-    } else {
-      setPhaseIdx(nextPhase); setSecs(SPIRAL_BREATH[nextPhase].secs);
-    }
-  }, [stage, secs, phaseIdx, cycle]);
-
-  // shake countdown
-  useEffect(() => {
-    if (stage !== "shake") return;
-    if (secs <= 0) { setStage("name"); return; }
-    const t = setTimeout(() => setSecs((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [stage, secs]);
-
-  const startBreath = () => { setCycle(0); setPhaseIdx(0); setSecs(SPIRAL_BREATH[0].secs); setStage("breath"); };
-
-  return (
-    <div style={{ textAlign: "center", maxWidth: 360, margin: "0 auto" }}>
-      {stage === "intro" && (
-        <>
-          <H2>Everything at once?</H2>
-          <Sub>
-            Okay. We're not going to fix anything right now — we're going to get you
-            back behind the wheel. Ninety seconds, three steps, I'll count.
-            You just follow.
-          </Sub>
-          <BigButton onClick={startBreath}>Start — step 1 of 3</BigButton>
-        </>
-      )}
-
-      {stage === "breath" && (
-        <>
-          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
-            textTransform: "uppercase" }}>step 1 · breath · cycle {cycle + 1} of 3</p>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 30, color: C.paper, margin: "30px 0 10px" }}>
-            {SPIRAL_BREATH[phaseIdx].label}
-          </div>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 54, color: C.sea }}>
-            {secs}
-          </div>
-        </>
-      )}
-
-      {stage === "shake" && (
-        <>
-          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
-            textTransform: "uppercase" }}>step 2 · body</p>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 24, color: C.paper,
-            margin: "28px 0 10px", lineHeight: 1.5 }}>
-            Shake it out. Hands, arms, shoulders.<br />Hard. Ugly is fine.
-          </div>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 54, color: C.sea }}>
-            {secs}
-          </div>
-        </>
-      )}
-
-      {stage === "name" && (
-        <>
-          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
-            textTransform: "uppercase" }}>step 3 · name it</p>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 23, color: C.paper,
-            margin: "24px 0 6px", lineHeight: 1.5 }}>
-            Under all the noise —<br />what's the loudest one?
-          </div>
-          <Sub>Naming it takes a surprising amount of its power. One word is enough.</Sub>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-            {FEELINGS.map((f) => (
-              <Pill key={f.f} onClick={() => { setPicked(f); setStage("route"); }}>{f.f}</Pill>
-            ))}
-          </div>
-        </>
-      )}
-
-      {stage === "route" && picked && (
-        <>
-          <BigWord>{picked.f}. Named.</BigWord>
-          <Sub>{picked.note}</Sub>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-            <BigButton onClick={() => go(picked.to)}>Take me there</BigButton>
-            <BigButton ghost onClick={onBack}>I'm okay now</BigButton>
-          </div>
-        </>
-      )}
-      {stage !== "intro" && stage !== "route" && (
-        <div style={{ marginTop: 30 }}>
-          <button onClick={onBack}
-            style={{ background: "none", border: "none", cursor: "pointer",
-              color: C.faint, fontFamily: "Karla", fontSize: 12 }}>
-            stop — back to the pond
-          </button>
-        </div>
-      )}
-      {(stage === "intro" || stage === "route") && <BackLink onBack={onBack} />}
-    </div>
-  );
+    const [stage, setStage] = useState("intro"); // intro | breath | shake | name | route
+    const [cycle, setCycle] = useState(0);
+    const [phaseIdx, setPhaseIdx] = useState(0);
+    const [secs, setSecs] = useState(0);
+    const [picked, setPicked] = useState(null);
+    // breath engine: 3 cycles of double-sigh
+    useEffect(() => {
+        if (stage !== "breath")
+            return;
+        if (secs > 0) {
+            const t = setTimeout(() => setSecs((s) => s - 1), 1000);
+            return () => clearTimeout(t);
+        }
+        const nextPhase = phaseIdx + 1;
+        if (nextPhase >= SPIRAL_BREATH.length) {
+            if (cycle + 1 >= 3) {
+                setStage("shake");
+                setSecs(20);
+                return;
+            }
+            setCycle((c) => c + 1);
+            setPhaseIdx(0);
+            setSecs(SPIRAL_BREATH[0].secs);
+        }
+        else {
+            setPhaseIdx(nextPhase);
+            setSecs(SPIRAL_BREATH[nextPhase].secs);
+        }
+    }, [stage, secs, phaseIdx, cycle]);
+    // shake countdown
+    useEffect(() => {
+        if (stage !== "shake")
+            return;
+        if (secs <= 0) {
+            setStage("name");
+            return;
+        }
+        const t = setTimeout(() => setSecs((s) => s - 1), 1000);
+        return () => clearTimeout(t);
+    }, [stage, secs]);
+    const startBreath = () => { setCycle(0); setPhaseIdx(0); setSecs(SPIRAL_BREATH[0].secs); setStage("breath"); };
+    return (React.createElement("div", { style: { textAlign: "center", maxWidth: 360, margin: "0 auto" } },
+        stage === "intro" && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "Everything at once?"),
+            React.createElement(Sub, null, "Okay. We're not going to fix anything right now \u2014 we're going to get you back behind the wheel. Ninety seconds, three steps, I'll count. You just follow."),
+            React.createElement(BigButton, { onClick: startBreath }, "Start \u2014 step 1 of 3"))),
+        stage === "breath" && (React.createElement(React.Fragment, null,
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
+                    textTransform: "uppercase" } },
+                "step 1 \u00B7 breath \u00B7 cycle ",
+                cycle + 1,
+                " of 3"),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 30, color: C.paper, margin: "30px 0 10px" } }, SPIRAL_BREATH[phaseIdx].label),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 54, color: C.sea } }, secs))),
+        stage === "shake" && (React.createElement(React.Fragment, null,
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
+                    textTransform: "uppercase" } }, "step 2 \u00B7 body"),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 24, color: C.paper,
+                    margin: "28px 0 10px", lineHeight: 1.5 } },
+                "Shake it out. Hands, arms, shoulders.",
+                React.createElement("br", null),
+                "Hard. Ugly is fine."),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 54, color: C.sea } }, secs))),
+        stage === "name" && (React.createElement(React.Fragment, null,
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
+                    textTransform: "uppercase" } }, "step 3 \u00B7 name it"),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 23, color: C.paper,
+                    margin: "24px 0 6px", lineHeight: 1.5 } },
+                "Under all the noise \u2014",
+                React.createElement("br", null),
+                "what's the loudest one?"),
+            React.createElement(Sub, null, "Naming it takes a surprising amount of its power. One word is enough."),
+            React.createElement("div", { style: { display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" } }, FEELINGS.map((f) => (React.createElement(Pill, { key: f.f, onClick: () => { setPicked(f); setStage("route"); } }, f.f)))))),
+        stage === "route" && picked && (React.createElement(React.Fragment, null,
+            React.createElement(BigWord, null,
+                picked.f,
+                ". Named."),
+            React.createElement(Sub, null, picked.note),
+            React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" } },
+                React.createElement(BigButton, { onClick: () => go(picked.to) }, "Take me there"),
+                React.createElement(BigButton, { ghost: true, onClick: onBack }, "I'm okay now")))),
+        stage !== "intro" && stage !== "route" && (React.createElement("div", { style: { marginTop: 30 } },
+            React.createElement("button", { onClick: onBack, style: { background: "none", border: "none", cursor: "pointer",
+                    color: C.faint, fontFamily: "Karla", fontSize: 12 } }, "stop \u2014 back to the pond"))),
+        (stage === "intro" || stage === "route") && React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— NIGHT — closing the day —————
 function Night({ onBack, go }) {
-  const [stage, setStage] = useState("open"); // open | one | didnt | done
-  const [opens, setOpens] = useState([]);
-  const [text, setText] = useState("");
-  const [oneThing, setOneThing] = useState("");
-  const [didnt, setDidnt] = useState("");
-  const [savedToProof, setSavedToProof] = useState(false);
-
-  const add = () => {
-    const t = text.trim();
-    if (!t) return;
-    setOpens((a) => [...a, t]);
-    setText("");
-  };
-
-  const saveOne = () => {
-    const t = oneThing.trim();
-    if (!t) return;
-    sSet("sw-tomorrow", { d: localDate(1), t });
-    setStage("didnt");
-  };
-
-  const finish = async () => {
-    const t = didnt.trim();
-    if (t && !savedToProof) {
-      const entries = await sGet("sw-proof", []);
-      await sSet("sw-proof", [...entries, { t, d: localDate() }]);
-      setSavedToProof(true);
-    }
-    setStage("done");
-  };
-
-  return (
-    <div style={{ textAlign: "center", maxWidth: 370, margin: "0 auto" }}>
-      {stage === "open" && (
-        <>
-          <H2>Close the day, or it leaks into the night.</H2>
-          <Sub>
-            The 2 AM brain runs on unfinished business. So: empty the open loops here.
-            You're not solving them — you're writing them down so your head
-            doesn't have to hold them while you sleep.
-          </Sub>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Input value={text} onChange={setText} onEnter={add} autoFocus placeholder="Still open in your head…" />
-            <button onClick={add}
-              style={{ padding: "0 20px", borderRadius: 12, border: "none", cursor: "pointer",
-                background: C.sea, color: C.ink, fontFamily: "Karla", fontWeight: 700 }}>Add</button>
-          </div>
-          <div style={{ margin: "18px 0", textAlign: "left" }}>
-            {opens.map((o, i) => (
-              <div key={i} style={{ fontFamily: "Karla", fontSize: 14.5, color: C.paper,
-                padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.faint}`, marginBottom: 8 }}>
-                {o}
-              </div>
-            ))}
-          </div>
-          <BigButton onClick={() => setStage("one")}>
-            {opens.length > 0 ? "They're held. Next" : "Nothing open — next"}
-          </BigButton>
-        </>
-      )}
-
-      {stage === "one" && (
-        <>
-          <H2>Tomorrow gets ONE thing.</H2>
-          <Sub>
-            Not a to-do list — a single anchor. Tomorrow-you wakes up with a
-            head start instead of a blank, roaring page. It'll be waiting on the
-            home screen in the morning.
-          </Sub>
-          <Input value={oneThing} onChange={setOneThing} autoFocus
-            placeholder="Tomorrow's one thing…" onEnter={saveOne} />
-          <div style={{ marginTop: 18, display: "flex", gap: 10, justifyContent: "center" }}>
-            <BigButton onClick={saveOne}>Set it</BigButton>
-            <BigButton ghost onClick={() => setStage("didnt")}>Skip tonight</BigButton>
-          </div>
-        </>
-      )}
-
-      {stage === "didnt" && (
-        <>
-          <H2>One thing today that didn't suck.</H2>
-          <Sub>
-            Not gratitude homework. Just one true, small thing — a decent coffee, a message
-            answered, a moment of quiet. It goes straight into your Proof jar as a receipt.
-          </Sub>
-          <Input value={didnt} onChange={setDidnt} autoFocus
-            placeholder="One thing that didn't suck…" onEnter={finish} />
-          <div style={{ marginTop: 18, display: "flex", gap: 10, justifyContent: "center" }}>
-            <BigButton warm onClick={finish}>Drop it in the jar</BigButton>
-            <BigButton ghost onClick={() => setStage("done")}>Nothing today — that's allowed</BigButton>
-          </div>
-        </>
-      )}
-
-      {stage === "done" && (
-        <>
-          <BigWord>The day is closed.</BigWord>
-          <Sub>
-            Loops written down. Tomorrow has its one thing. {savedToProof ? "A receipt is in the jar." : ""} There
-            is nothing left tonight that needs you. If the head is still buzzing,
-            take the long exhale down with you.
-          </Sub>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-            <BigButton onClick={() => go("breathe", "relax")}>4-7-8 me down</BigButton>
-            <BigButton ghost onClick={onBack}>Good night</BigButton>
-          </div>
-        </>
-      )}
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    const [stage, setStage] = useState("open"); // open | one | didnt | done
+    const [opens, setOpens] = useState([]);
+    const [text, setText] = useState("");
+    const [oneThing, setOneThing] = useState("");
+    const [didnt, setDidnt] = useState("");
+    const [savedToProof, setSavedToProof] = useState(false);
+    const add = () => {
+        const t = text.trim();
+        if (!t)
+            return;
+        setOpens((a) => [...a, t]);
+        setText("");
+    };
+    const saveOne = () => {
+        const t = oneThing.trim();
+        if (!t)
+            return;
+        sSet("sw-tomorrow", { d: localDate(1), t });
+        setStage("didnt");
+    };
+    const finish = async () => {
+        const t = didnt.trim();
+        if (t && !savedToProof) {
+            const entries = await sGet("sw-proof", []);
+            await sSet("sw-proof", [...entries, { t, d: localDate() }]);
+            setSavedToProof(true);
+        }
+        setStage("done");
+    };
+    return (React.createElement("div", { style: { textAlign: "center", maxWidth: 370, margin: "0 auto" } },
+        stage === "open" && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "Close the day, or it leaks into the night."),
+            React.createElement(Sub, null, "The 2 AM brain runs on unfinished business. So: empty the open loops here. You're not solving them \u2014 you're writing them down so your head doesn't have to hold them while you sleep."),
+            React.createElement("div", { style: { display: "flex", gap: 8 } },
+                React.createElement(Input, { value: text, onChange: setText, onEnter: add, autoFocus: true, placeholder: "Still open in your head\u2026" }),
+                React.createElement("button", { onClick: add, style: { padding: "0 20px", borderRadius: 12, border: "none", cursor: "pointer",
+                        background: C.sea, color: C.ink, fontFamily: "Karla", fontWeight: 700 } }, "Add")),
+            React.createElement("div", { style: { margin: "18px 0", textAlign: "left" } }, opens.map((o, i) => (React.createElement("div", { key: i, style: { fontFamily: "Karla", fontSize: 14.5, color: C.paper,
+                    padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.faint}`, marginBottom: 8 } }, o)))),
+            React.createElement(BigButton, { onClick: () => setStage("one") }, opens.length > 0 ? "They're held. Next" : "Nothing open — next"))),
+        stage === "one" && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "Tomorrow gets ONE thing."),
+            React.createElement(Sub, null, "Not a to-do list \u2014 a single anchor. Tomorrow-you wakes up with a head start instead of a blank, roaring page. It'll be waiting on the home screen in the morning."),
+            React.createElement(Input, { value: oneThing, onChange: setOneThing, autoFocus: true, placeholder: "Tomorrow's one thing\u2026", onEnter: saveOne }),
+            React.createElement("div", { style: { marginTop: 18, display: "flex", gap: 10, justifyContent: "center" } },
+                React.createElement(BigButton, { onClick: saveOne }, "Set it"),
+                React.createElement(BigButton, { ghost: true, onClick: () => setStage("didnt") }, "Skip tonight")))),
+        stage === "didnt" && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "One thing today that didn't suck."),
+            React.createElement(Sub, null, "Not gratitude homework. Just one true, small thing \u2014 a decent coffee, a message answered, a moment of quiet. It goes straight into your Proof jar as a receipt."),
+            React.createElement(Input, { value: didnt, onChange: setDidnt, autoFocus: true, placeholder: "One thing that didn't suck\u2026", onEnter: finish }),
+            React.createElement("div", { style: { marginTop: 18, display: "flex", gap: 10, justifyContent: "center" } },
+                React.createElement(BigButton, { warm: true, onClick: finish }, "Drop it in the jar"),
+                React.createElement(BigButton, { ghost: true, onClick: () => setStage("done") }, "Nothing today \u2014 that's allowed")))),
+        stage === "done" && (React.createElement(React.Fragment, null,
+            React.createElement(BigWord, null, "The day is closed."),
+            React.createElement(Sub, null,
+                "Loops written down. Tomorrow has its one thing. ",
+                savedToProof ? "A receipt is in the jar." : "",
+                " There is nothing left tonight that needs you. If the head is still buzzing, take the long exhale down with you."),
+            React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "center" } },
+                React.createElement(BigButton, { onClick: () => go("breathe", "relax") }, "4-7-8 me down"),
+                React.createElement(BigButton, { ghost: true, onClick: onBack }, "Good night")))),
+        React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— KIND VOICE — the second opinion —————
 function KindVoice({ onBack }) {
-  const [stage, setStage] = useState("critic"); // critic | rewrite | side
-  const [critic, setCritic] = useState("");
-  const [kind, setKind] = useState("");
-  const [kept, setKept] = useState(false);
-
-  const keep = async () => {
-    if (kept || !kind.trim()) return;
-    const entries = await sGet("sw-proof", []);
-    await sSet("sw-proof", [...entries, { t: `Answered the critic: "${kind.trim()}"`, d: localDate() }]);
-    setKept(true);
-  };
-
-  return (
-    <div style={{ textAlign: "center", maxWidth: 370, margin: "0 auto" }}>
-      {stage === "critic" && (
-        <>
-          <H2>What's the critic saying?</H2>
-          <Sub>
-            Word for word. Its favorite line, in its actual tone. Getting it out of
-            your head and onto the screen is the first move — inside, it sounds like truth;
-            outside, it sounds like what it is.
-          </Sub>
-          <Input value={critic} onChange={setCritic} autoFocus placeholder="The harsh line, verbatim…"
-            onEnter={() => critic.trim() && setStage("rewrite")} />
-          <div style={{ marginTop: 18 }}>
-            <BigButton onClick={() => critic.trim() && setStage("rewrite")}>It's out</BigButton>
-          </div>
-        </>
-      )}
-
-      {stage === "rewrite" && (
-        <>
-          <div style={{ fontFamily: "Karla", fontSize: 14, color: C.mist, opacity: 0.6,
-            fontStyle: "italic", marginBottom: 22 }}>
-            "{critic}"
-          </div>
-          <H2>Now — someone you love comes to you with this exact situation.</H2>
-          <Sub>
-            Same facts. Same failure, if it even is one. What do you actually say to them?
-            Write it down. You already know how to do this voice — you use it on everyone but yourself.
-          </Sub>
-          <Input value={kind} onChange={setKind} autoFocus placeholder="What you'd tell them…"
-            onEnter={() => kind.trim() && setStage("side")} />
-          <div style={{ marginTop: 18 }}>
-            <BigButton onClick={() => kind.trim() && setStage("side")}>Say it</BigButton>
-          </div>
-        </>
-      )}
-
-      {stage === "side" && (
-        <>
-          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
-            textTransform: "uppercase", marginBottom: 16 }}>same facts · two voices</p>
-          <div style={{ fontFamily: "Karla", fontSize: 14, color: C.mist, opacity: 0.45,
-            textDecoration: "line-through", textDecorationColor: "rgba(169,195,214,0.5)",
-            lineHeight: 1.5, marginBottom: 14 }}>
-            "{critic}"
-          </div>
-          <div style={{ padding: "18px 20px", borderRadius: 16,
-            border: `1px solid rgba(216,179,106,0.45)`, background: "rgba(216,179,106,0.07)",
-            animation: "fadeIn 0.5s ease" }}>
-            <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 19, color: C.paper, lineHeight: 1.5 }}>
-              "{kind}"
-            </div>
-          </div>
-          <Sub style={{ marginTop: 16 }}>
-            Harshness is not honesty. The second voice knows the same facts — it just
-            doesn't get as much airtime. Give it more.
-          </Sub>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-            <BigButton warm onClick={keep}>{kept ? "In the jar ✓" : "Keep it in Proof"}</BigButton>
-            <BigButton ghost onClick={() => { setCritic(""); setKind(""); setKept(false); setStage("critic"); }}>
-              Another line
-            </BigButton>
-          </div>
-        </>
-      )}
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    const [stage, setStage] = useState("critic"); // critic | rewrite | side
+    const [critic, setCritic] = useState("");
+    const [kind, setKind] = useState("");
+    const [kept, setKept] = useState(false);
+    const keep = async () => {
+        if (kept || !kind.trim())
+            return;
+        const entries = await sGet("sw-proof", []);
+        await sSet("sw-proof", [...entries, { t: `Answered the critic: "${kind.trim()}"`, d: localDate() }]);
+        setKept(true);
+    };
+    return (React.createElement("div", { style: { textAlign: "center", maxWidth: 370, margin: "0 auto" } },
+        stage === "critic" && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "What's the critic saying?"),
+            React.createElement(Sub, null, "Word for word. Its favorite line, in its actual tone. Getting it out of your head and onto the screen is the first move \u2014 inside, it sounds like truth; outside, it sounds like what it is."),
+            React.createElement(Input, { value: critic, onChange: setCritic, autoFocus: true, placeholder: "The harsh line, verbatim\u2026", onEnter: () => critic.trim() && setStage("rewrite") }),
+            React.createElement("div", { style: { marginTop: 18 } },
+                React.createElement(BigButton, { onClick: () => critic.trim() && setStage("rewrite") }, "It's out")))),
+        stage === "rewrite" && (React.createElement(React.Fragment, null,
+            React.createElement("div", { style: { fontFamily: "Karla", fontSize: 14, color: C.mist, opacity: 0.6,
+                    fontStyle: "italic", marginBottom: 22 } },
+                "\"",
+                critic,
+                "\""),
+            React.createElement(H2, null, "Now \u2014 someone you love comes to you with this exact situation."),
+            React.createElement(Sub, null, "Same facts. Same failure, if it even is one. What do you actually say to them? Write it down. You already know how to do this voice \u2014 you use it on everyone but yourself."),
+            React.createElement(Input, { value: kind, onChange: setKind, autoFocus: true, placeholder: "What you'd tell them\u2026", onEnter: () => kind.trim() && setStage("side") }),
+            React.createElement("div", { style: { marginTop: 18 } },
+                React.createElement(BigButton, { onClick: () => kind.trim() && setStage("side") }, "Say it")))),
+        stage === "side" && (React.createElement(React.Fragment, null,
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
+                    textTransform: "uppercase", marginBottom: 16 } }, "same facts \u00B7 two voices"),
+            React.createElement("div", { style: { fontFamily: "Karla", fontSize: 14, color: C.mist, opacity: 0.45,
+                    textDecoration: "line-through", textDecorationColor: "rgba(169,195,214,0.5)",
+                    lineHeight: 1.5, marginBottom: 14 } },
+                "\"",
+                critic,
+                "\""),
+            React.createElement("div", { style: { padding: "18px 20px", borderRadius: 16,
+                    border: `1px solid rgba(216,179,106,0.45)`, background: "rgba(216,179,106,0.07)",
+                    animation: "fadeIn 0.5s ease" } },
+                React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 19, color: C.paper, lineHeight: 1.5 } },
+                    "\"",
+                    kind,
+                    "\"")),
+            React.createElement(Sub, { style: { marginTop: 16 } }, "Harshness is not honesty. The second voice knows the same facts \u2014 it just doesn't get as much airtime. Give it more."),
+            React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" } },
+                React.createElement(BigButton, { warm: true, onClick: keep }, kept ? "In the jar ✓" : "Keep it in Proof"),
+                React.createElement(BigButton, { ghost: true, onClick: () => { setCritic(""); setKind(""); setKept(false); setStage("critic"); } }, "Another line")))),
+        React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— MORNING — surfacing —————
 function Morning({ onBack }) {
-  const [stage, setStage] = useState("breath"); // breath | one | receipt | ember | done
-  const [secs, setSecs] = useState(18);
-  const [one, setOne] = useState(null);
-  const [text, setText] = useState("");
-  const [receipt, setReceipt] = useState(null);
-  const [ember] = useState(() => EMBER_POOL[Math.floor(Math.random() * EMBER_POOL.length)]);
-  const [showSmaller, setShowSmaller] = useState(false);
-
-  useEffect(() => {
-    sGet("sw-tomorrow", null).then((v) => { if (v && v.d === localDate()) setOne(v.t); });
-    sGet("sw-proof", []).then((es) => {
-      if (es.length) setReceipt(es[Math.floor(Math.random() * es.length)]);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (stage !== "breath") return;
-    if (secs <= 0) { setStage("one"); return; }
-    const t = setTimeout(() => setSecs((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [stage, secs]);
-
-  useEffect(() => {
-    if (stage === "receipt" && !receipt) setStage("ember");
-  }, [stage, receipt]);
-
-  const setToday = () => {
-    const t = text.trim();
-    if (!t) return;
-    sSet("sw-tomorrow", { d: localDate(), t });
-    setOne(t);
-    setStage("receipt");
-  };
-
-  const litOne = async () => {
-    const total = await sGet("sw-embers-total", 0);
-    await sSet("sw-embers-total", total + 1);
-    setStage("done");
-  };
-
-  return (
-    <div style={{ textAlign: "center", maxWidth: 370, margin: "0 auto" }}>
-      {stage === "breath" && (
-        <>
-          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
-            textTransform: "uppercase" }}>surfacing</p>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 24, color: C.paper,
-            margin: "26px 0 10px", lineHeight: 1.5 }}>
-            Before the phone, before the day —<br />three slow breaths.
-          </div>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 54, color: C.storm, margin: "16px 0" }}>
-            {secs}
-          </div>
-          <p style={{ fontFamily: "Karla", fontSize: 13, color: C.mist }}>
-            In through the nose. Out long. Nothing is required of you yet.
-          </p>
-        </>
-      )}
-
-      {stage === "one" && (
-        <>
-          {one ? (
-            <>
-              <p style={{ fontFamily: "Karla", fontSize: 12, color: C.amber, letterSpacing: 2,
-                textTransform: "uppercase" }}>last-night you left this</p>
-              <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 26, color: C.paper,
-                margin: "18px 0", lineHeight: 1.4 }}>
-                {one}
-              </div>
-              <Sub>That's the whole plan. One anchor. Everything else is optional today.</Sub>
-              <BigButton onClick={() => setStage("receipt")}>Carry it</BigButton>
-            </>
-          ) : (
-            <>
-              <H2>Today gets ONE thing.</H2>
-              <Sub>
-                No note from last night — that's fine, set it now. One anchor beats a
-                roaring blank page every time.
-              </Sub>
-              <Input value={text} onChange={setText} autoFocus placeholder="Today's one thing…"
-                onEnter={setToday} />
-              <div style={{ marginTop: 18, display: "flex", gap: 10, justifyContent: "center" }}>
-                <BigButton onClick={setToday}>Set it</BigButton>
-                <BigButton ghost onClick={() => setStage("receipt")}>Not today</BigButton>
-              </div>
-            </>
-          )}
-        </>
-      )}
-
-      {stage === "receipt" && receipt && (
-        <>
-          <p style={{ fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
-            textTransform: "uppercase", marginBottom: 16 }}>a word from past you</p>
-          <div style={{ padding: "20px 22px", borderRadius: 16,
-            border: `1px solid rgba(216,179,106,0.4)`, background: "rgba(216,179,106,0.07)",
-            animation: "fadeIn 0.5s ease" }}>
-            <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 19, color: C.paper, lineHeight: 1.5 }}>
-              {receipt.t}
-            </div>
-            <div style={{ fontFamily: "Karla", fontSize: 11.5, color: C.amber, marginTop: 10, letterSpacing: 1 }}>
-              — you, {receipt.d}
-            </div>
-          </div>
-          <Sub style={{ marginTop: 16 }}>Whatever the morning brain says — this also happened.</Sub>
-          <BigButton onClick={() => setStage("ember")}>Onward</BigButton>
-        </>
-      )}
-
-      {stage === "ember" && (
-        <>
-          <H2>One ember to get vertical.</H2>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 21, color: C.paper,
-            margin: "18px 0 8px", lineHeight: 1.5 }}>
-            {ember.text}
-          </div>
-          <p style={{ fontFamily: "Karla", fontSize: 13, color: C.mist, fontStyle: "italic", marginBottom: 8 }}>
-            {ember.why}
-          </p>
-          {showSmaller ? (
-            <p style={{ fontFamily: "Karla", fontSize: 13.5, color: C.amber, margin: "8px 0 18px",
-              animation: "fadeIn 0.4s ease" }}>
-              {ember.smaller}
-            </p>
-          ) : (
-            <button onClick={() => setShowSmaller(true)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: C.faint,
-                fontFamily: "Karla", fontSize: 12.5, textDecoration: "underline",
-                textUnderlineOffset: 3, margin: "4px 0 16px" }}>
-              too big right now?
-            </button>
-          )}
-          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-            <BigButton warm onClick={litOne}>Did it</BigButton>
-            <BigButton ghost onClick={() => setStage("done")}>Skip — no guilt</BigButton>
-          </div>
-        </>
-      )}
-
-      {stage === "done" && (
-        <>
-          <BigWord>Surfaced.</BigWord>
-          <Sub>
-            The hardest ten minutes of the day are already behind you.
-            The rest only has to be ordinary.
-          </Sub>
-          <BigButton ghost onClick={onBack}>Into the day</BigButton>
-        </>
-      )}
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    const [stage, setStage] = useState("breath"); // breath | one | receipt | ember | done
+    const [secs, setSecs] = useState(18);
+    const [one, setOne] = useState(null);
+    const [text, setText] = useState("");
+    const [receipt, setReceipt] = useState(null);
+    const [ember] = useState(() => EMBER_POOL[Math.floor(Math.random() * EMBER_POOL.length)]);
+    const [showSmaller, setShowSmaller] = useState(false);
+    useEffect(() => {
+        sGet("sw-tomorrow", null).then((v) => { if (v && v.d === localDate())
+            setOne(v.t); });
+        sGet("sw-proof", []).then((es) => {
+            if (es.length)
+                setReceipt(es[Math.floor(Math.random() * es.length)]);
+        });
+    }, []);
+    useEffect(() => {
+        if (stage !== "breath")
+            return;
+        if (secs <= 0) {
+            setStage("one");
+            return;
+        }
+        const t = setTimeout(() => setSecs((s) => s - 1), 1000);
+        return () => clearTimeout(t);
+    }, [stage, secs]);
+    useEffect(() => {
+        if (stage === "receipt" && !receipt)
+            setStage("ember");
+    }, [stage, receipt]);
+    const setToday = () => {
+        const t = text.trim();
+        if (!t)
+            return;
+        sSet("sw-tomorrow", { d: localDate(), t });
+        setOne(t);
+        setStage("receipt");
+    };
+    const litOne = async () => {
+        const total = await sGet("sw-embers-total", 0);
+        await sSet("sw-embers-total", total + 1);
+        setStage("done");
+    };
+    return (React.createElement("div", { style: { textAlign: "center", maxWidth: 370, margin: "0 auto" } },
+        stage === "breath" && (React.createElement(React.Fragment, null,
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
+                    textTransform: "uppercase" } }, "surfacing"),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 24, color: C.paper,
+                    margin: "26px 0 10px", lineHeight: 1.5 } },
+                "Before the phone, before the day \u2014",
+                React.createElement("br", null),
+                "three slow breaths."),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 54, color: C.storm, margin: "16px 0" } }, secs),
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 13, color: C.mist } }, "In through the nose. Out long. Nothing is required of you yet."))),
+        stage === "one" && (React.createElement(React.Fragment, null, one ? (React.createElement(React.Fragment, null,
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 12, color: C.amber, letterSpacing: 2,
+                    textTransform: "uppercase" } }, "last-night you left this"),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 26, color: C.paper,
+                    margin: "18px 0", lineHeight: 1.4 } }, one),
+            React.createElement(Sub, null, "That's the whole plan. One anchor. Everything else is optional today."),
+            React.createElement(BigButton, { onClick: () => setStage("receipt") }, "Carry it"))) : (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "Today gets ONE thing."),
+            React.createElement(Sub, null, "No note from last night \u2014 that's fine, set it now. One anchor beats a roaring blank page every time."),
+            React.createElement(Input, { value: text, onChange: setText, autoFocus: true, placeholder: "Today's one thing\u2026", onEnter: setToday }),
+            React.createElement("div", { style: { marginTop: 18, display: "flex", gap: 10, justifyContent: "center" } },
+                React.createElement(BigButton, { onClick: setToday }, "Set it"),
+                React.createElement(BigButton, { ghost: true, onClick: () => setStage("receipt") }, "Not today")))))),
+        stage === "receipt" && receipt && (React.createElement(React.Fragment, null,
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 12, color: C.faint, letterSpacing: 2,
+                    textTransform: "uppercase", marginBottom: 16 } }, "a word from past you"),
+            React.createElement("div", { style: { padding: "20px 22px", borderRadius: 16,
+                    border: `1px solid rgba(216,179,106,0.4)`, background: "rgba(216,179,106,0.07)",
+                    animation: "fadeIn 0.5s ease" } },
+                React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 19, color: C.paper, lineHeight: 1.5 } }, receipt.t),
+                React.createElement("div", { style: { fontFamily: "Karla", fontSize: 11.5, color: C.amber, marginTop: 10, letterSpacing: 1 } },
+                    "\u2014 you, ",
+                    receipt.d)),
+            React.createElement(Sub, { style: { marginTop: 16 } }, "Whatever the morning brain says \u2014 this also happened."),
+            React.createElement(BigButton, { onClick: () => setStage("ember") }, "Onward"))),
+        stage === "ember" && (React.createElement(React.Fragment, null,
+            React.createElement(H2, null, "One ember to get vertical."),
+            React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 21, color: C.paper,
+                    margin: "18px 0 8px", lineHeight: 1.5 } }, ember.text),
+            React.createElement("p", { style: { fontFamily: "Karla", fontSize: 13, color: C.mist, fontStyle: "italic", marginBottom: 8 } }, ember.why),
+            showSmaller ? (React.createElement("p", { style: { fontFamily: "Karla", fontSize: 13.5, color: C.amber, margin: "8px 0 18px",
+                    animation: "fadeIn 0.4s ease" } }, ember.smaller)) : (React.createElement("button", { onClick: () => setShowSmaller(true), style: { background: "none", border: "none", cursor: "pointer", color: C.faint,
+                    fontFamily: "Karla", fontSize: 12.5, textDecoration: "underline",
+                    textUnderlineOffset: 3, margin: "4px 0 16px" } }, "too big right now?")),
+            React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "center" } },
+                React.createElement(BigButton, { warm: true, onClick: litOne }, "Did it"),
+                React.createElement(BigButton, { ghost: true, onClick: () => setStage("done") }, "Skip \u2014 no guilt")))),
+        stage === "done" && (React.createElement(React.Fragment, null,
+            React.createElement(BigWord, null, "Surfaced."),
+            React.createElement(Sub, null, "The hardest ten minutes of the day are already behind you. The rest only has to be ordinary."),
+            React.createElement(BigButton, { ghost: true, onClick: onBack }, "Into the day"))),
+        React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— POND — what the water keeps —————
 function Pond({ onBack }) {
-  const [embers, setEmbers] = useState(null);
-  const [proof, setProof] = useState(null);
-  const [weather, setWeather] = useState(null);
-
-  useEffect(() => {
-    sGet("sw-embers-total", 0).then(setEmbers);
-    sGet("sw-proof", []).then(setProof);
-    sGet("sw-weather", []).then(setWeather);
-  }, []);
-
-  if (embers === null || proof === null || weather === null) {
-    return <div style={{ textAlign: "center", fontFamily: "Karla", color: C.faint, paddingTop: 40 }}>looking into the water…</div>;
-  }
-
-  const empty = embers === 0 && proof.length === 0 && weather.length === 0;
-  const last30 = weather.slice(-30);
-
-  const Stat = ({ big, label, color }) => (
-    <div style={{ padding: "18px 12px", borderRadius: 16, flex: 1,
-      border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.03)" }}>
-      <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 32, color: color || C.sea }}>{big}</div>
-      <div style={{ fontFamily: "Karla", fontSize: 11.5, color: C.mist, marginTop: 4, letterSpacing: 0.5 }}>{label}</div>
-    </div>
-  );
-
-  return (
-    <div style={{ textAlign: "center", maxWidth: 380, margin: "0 auto" }}>
-      <H2>The pond remembers.</H2>
-      <Sub>What the fog erases, the water keeps. No streaks, no scores — just the record.</Sub>
-
-      {empty ? (
-        <p style={{ fontFamily: "Karla", fontSize: 13.5, color: C.faint, marginTop: 20, lineHeight: 1.7 }}>
-          Nothing here yet — the pond fills one small true thing at a time.
-          An ember, a receipt, a weather mark. It adds up quietly.
-        </p>
-      ) : (
-        <>
-          <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
-            <Stat big={embers} label={embers === 1 ? "ember lit" : "embers lit"} color={C.amber} />
-            <Stat big={proof.length} label={proof.length === 1 ? "receipt kept" : "receipts kept"} color={C.amber} />
-            <Stat big={weather.length} label={weather.length === 1 ? "day logged" : "days logged"} color={C.storm} />
-          </div>
-          {last30.length > 1 && (
-            <div style={{ padding: "16px 14px", borderRadius: 16,
-              border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.03)" }}>
-              <div style={{ fontFamily: "Karla", fontSize: 11.5, color: C.faint,
-                letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 }}>
-                inner weather · last {last30.length} logged days
-              </div>
-              <div style={{ display: "flex", gap: 4, justifyContent: "center", flexWrap: "wrap", fontSize: 15 }}>
-                {last30.map((e, i) => (
-                  <span key={i} title={e.d}>
-                    {WEATHER.find((w) => w.k === e.w)?.g}
-                  </span>
-                ))}
-              </div>
-              <div style={{ fontFamily: "Karla", fontSize: 11.5, color: C.faint, marginTop: 10, fontStyle: "italic" }}>
-                it moves. it always moves.
-              </div>
-            </div>
-          )}
-          <Sub style={{ marginTop: 18 }}>
-            Every number up there was earned on a day when it wasn't easy.
-            That's the whole point of keeping them.
-          </Sub>
-        </>
-      )}
-      <BackLink onBack={onBack} />
-    </div>
-  );
+    const [embers, setEmbers] = useState(null);
+    const [proof, setProof] = useState(null);
+    const [weather, setWeather] = useState(null);
+    useEffect(() => {
+        sGet("sw-embers-total", 0).then(setEmbers);
+        sGet("sw-proof", []).then(setProof);
+        sGet("sw-weather", []).then(setWeather);
+    }, []);
+    if (embers === null || proof === null || weather === null) {
+        return React.createElement("div", { style: { textAlign: "center", fontFamily: "Karla", color: C.faint, paddingTop: 40 } }, "looking into the water\u2026");
+    }
+    const empty = embers === 0 && proof.length === 0 && weather.length === 0;
+    const last30 = weather.slice(-30);
+    const Stat = ({ big, label, color }) => (React.createElement("div", { style: { padding: "18px 12px", borderRadius: 16, flex: 1,
+            border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.03)" } },
+        React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 32, color: color || C.sea } }, big),
+        React.createElement("div", { style: { fontFamily: "Karla", fontSize: 11.5, color: C.mist, marginTop: 4, letterSpacing: 0.5 } }, label)));
+    return (React.createElement("div", { style: { textAlign: "center", maxWidth: 380, margin: "0 auto" } },
+        React.createElement(H2, null, "The pond remembers."),
+        React.createElement(Sub, null, "What the fog erases, the water keeps. No streaks, no scores \u2014 just the record."),
+        empty ? (React.createElement("p", { style: { fontFamily: "Karla", fontSize: 13.5, color: C.faint, marginTop: 20, lineHeight: 1.7 } }, "Nothing here yet \u2014 the pond fills one small true thing at a time. An ember, a receipt, a weather mark. It adds up quietly.")) : (React.createElement(React.Fragment, null,
+            React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 18 } },
+                React.createElement(Stat, { big: embers, label: embers === 1 ? "ember lit" : "embers lit", color: C.amber }),
+                React.createElement(Stat, { big: proof.length, label: proof.length === 1 ? "receipt kept" : "receipts kept", color: C.amber }),
+                React.createElement(Stat, { big: weather.length, label: weather.length === 1 ? "day logged" : "days logged", color: C.storm })),
+            last30.length > 1 && (React.createElement("div", { style: { padding: "16px 14px", borderRadius: 16,
+                    border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.03)" } },
+                React.createElement("div", { style: { fontFamily: "Karla", fontSize: 11.5, color: C.faint,
+                        letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 } },
+                    "inner weather \u00B7 last ",
+                    last30.length,
+                    " logged days"),
+                React.createElement("div", { style: { display: "flex", gap: 4, justifyContent: "center", flexWrap: "wrap", fontSize: 15 } }, last30.map((e, i) => (React.createElement("span", { key: i, title: e.d }, WEATHER.find((w) => w.k === e.w)?.g)))),
+                React.createElement("div", { style: { fontFamily: "Karla", fontSize: 11.5, color: C.faint, marginTop: 10, fontStyle: "italic" } }, "it moves. it always moves."))),
+            React.createElement(Sub, { style: { marginTop: 18 } }, "Every number up there was earned on a day when it wasn't easy. That's the whole point of keeping them."))),
+        React.createElement(BackLink, { onBack: onBack })));
 }
-
 // ————— INNER WEATHER — one-tap mood log —————
 const WEATHER = [
-  { k: "storm", g: "⛈", label: "storm" },
-  { k: "rain", g: "🌧", label: "rain" },
-  { k: "fog", g: "🌫", label: "fog" },
-  { k: "breaks", g: "⛅", label: "breaks" },
-  { k: "clear", g: "☀️", label: "clear" },
+    { k: "storm", g: "⛈", label: "storm" },
+    { k: "rain", g: "🌧", label: "rain" },
+    { k: "fog", g: "🌫", label: "fog" },
+    { k: "breaks", g: "⛅", label: "breaks" },
+    { k: "clear", g: "☀️", label: "clear" },
 ];
-
 function WeatherRow() {
-  const [log, setLog] = useState(null);
-  const today = localDate();
-
-  useEffect(() => { sGet("sw-weather", []).then(setLog); }, []);
-
-  const setToday = (k) => {
-    if (!log) return;
-    const next = [...log.filter((e) => e.d !== today), { d: today, w: k }];
-    next.sort((a, b) => (a.d < b.d ? -1 : 1));
-    setLog(next);
-    sSet("sw-weather", next);
-  };
-
-  if (log === null) return null;
-  const todayEntry = log.find((e) => e.d === today);
-  const last14 = log.slice(-14);
-
-  return (
-    <div style={{ padding: "16px 18px", borderRadius: 16, marginBottom: 24,
-      border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.03)" }}>
-      <div style={{ fontFamily: "Karla", fontSize: 11.5, color: C.faint,
-        letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 }}>
-        inner weather · today
-      </div>
-      <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
-        {WEATHER.map((w) => (
-          <button key={w.k} onClick={() => setToday(w.k)} aria-label={w.label}
-            style={{ fontSize: 24, padding: "6px 8px", borderRadius: 10, cursor: "pointer",
-              border: `1px solid ${todayEntry?.w === w.k ? C.sea : "transparent"}`,
-              background: todayEntry?.w === w.k ? "rgba(127,184,164,0.12)" : "transparent",
-              filter: todayEntry && todayEntry.w !== w.k ? "grayscale(0.7) opacity(0.55)" : "none" }}>
-            {w.g}
-          </button>
-        ))}
-      </div>
-      {last14.length > 1 && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{ display: "flex", gap: 4, justifyContent: "center", fontSize: 13 }}>
-            {last14.map((e, i) => (
-              <span key={i} title={e.d} style={{ opacity: e.d === today ? 1 : 0.55 }}>
-                {WEATHER.find((w) => w.k === e.w)?.g}
-              </span>
-            ))}
-          </div>
-          <div style={{ fontFamily: "Karla", fontSize: 11, color: C.faint, marginTop: 8, fontStyle: "italic" }}>
-            weather, not climate — look how it moves
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    const [log, setLog] = useState(null);
+    const today = localDate();
+    useEffect(() => { sGet("sw-weather", []).then(setLog); }, []);
+    const setToday = (k) => {
+        if (!log)
+            return;
+        const next = [...log.filter((e) => e.d !== today), { d: today, w: k }];
+        next.sort((a, b) => (a.d < b.d ? -1 : 1));
+        setLog(next);
+        sSet("sw-weather", next);
+    };
+    if (log === null)
+        return null;
+    const todayEntry = log.find((e) => e.d === today);
+    const last14 = log.slice(-14);
+    return (React.createElement("div", { style: { padding: "16px 18px", borderRadius: 16, marginBottom: 24,
+            border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.03)" } },
+        React.createElement("div", { style: { fontFamily: "Karla", fontSize: 11.5, color: C.faint,
+                letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 } }, "inner weather \u00B7 today"),
+        React.createElement("div", { style: { display: "flex", gap: 6, justifyContent: "center" } }, WEATHER.map((w) => (React.createElement("button", { key: w.k, onClick: () => setToday(w.k), "aria-label": w.label, style: { fontSize: 24, padding: "6px 8px", borderRadius: 10, cursor: "pointer",
+                border: `1px solid ${todayEntry?.w === w.k ? C.sea : "transparent"}`,
+                background: todayEntry?.w === w.k ? "rgba(127,184,164,0.12)" : "transparent",
+                filter: todayEntry && todayEntry.w !== w.k ? "grayscale(0.7) opacity(0.55)" : "none" } }, w.g)))),
+        last14.length > 1 && (React.createElement("div", { style: { marginTop: 12 } },
+            React.createElement("div", { style: { display: "flex", gap: 4, justifyContent: "center", fontSize: 13 } }, last14.map((e, i) => (React.createElement("span", { key: i, title: e.d, style: { opacity: e.d === today ? 1 : 0.55 } }, WEATHER.find((w) => w.k === e.w)?.g)))),
+            React.createElement("div", { style: { fontFamily: "Karla", fontSize: 11, color: C.faint, marginTop: 8, fontStyle: "italic" } }, "weather, not climate \u2014 look how it moves")))));
 }
-
 // ————— TODAY'S ONE THING banner —————
 function TodayBanner() {
-  const [one, setOne] = useState(null);
-  const [cleared, setCleared] = useState(false);
-
-  useEffect(() => {
-    sGet("sw-tomorrow", null).then((v) => {
-      if (v && v.d === localDate()) setOne(v);
-    });
-  }, []);
-
-  if (!one || cleared) return null;
-
-  const markDone = async () => {
-    const entries = await sGet("sw-proof", []);
-    await sSet("sw-proof", [...entries, { t: `Did the one thing: ${one.t}`, d: localDate() }]);
-    await sSet("sw-tomorrow", null);
-    setCleared(true);
-  };
-
-  return (
-    <div style={{ padding: "16px 18px", borderRadius: 16, marginBottom: 14,
-      border: `1px solid rgba(216,179,106,0.45)`, background: "rgba(216,179,106,0.07)",
-      animation: "fadeIn 0.5s ease" }}>
-      <div style={{ fontFamily: "Karla", fontSize: 11.5, color: C.amber,
-        letterSpacing: 2, textTransform: "uppercase", marginBottom: 6 }}>
-        today's one thing — set by last-night you
-      </div>
-      <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 19, color: C.paper, lineHeight: 1.4 }}>
-        {one.t}
-      </div>
-      <button onClick={markDone}
-        style={{ marginTop: 12, padding: "8px 18px", borderRadius: 999, border: "none",
-          cursor: "pointer", background: C.amber, color: C.ink,
-          fontFamily: "Karla", fontWeight: 700, fontSize: 13 }}>
-        Done → into the Proof jar
-      </button>
-    </div>
-  );
+    const [one, setOne] = useState(null);
+    const [cleared, setCleared] = useState(false);
+    useEffect(() => {
+        sGet("sw-tomorrow", null).then((v) => {
+            if (v && v.d === localDate())
+                setOne(v);
+        });
+    }, []);
+    if (!one || cleared)
+        return null;
+    const markDone = async () => {
+        const entries = await sGet("sw-proof", []);
+        await sSet("sw-proof", [...entries, { t: `Did the one thing: ${one.t}`, d: localDate() }]);
+        await sSet("sw-tomorrow", null);
+        setCleared(true);
+    };
+    return (React.createElement("div", { style: { padding: "16px 18px", borderRadius: 16, marginBottom: 14,
+            border: `1px solid rgba(216,179,106,0.45)`, background: "rgba(216,179,106,0.07)",
+            animation: "fadeIn 0.5s ease" } },
+        React.createElement("div", { style: { fontFamily: "Karla", fontSize: 11.5, color: C.amber,
+                letterSpacing: 2, textTransform: "uppercase", marginBottom: 6 } }, "today's one thing \u2014 set by last-night you"),
+        React.createElement("div", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 19, color: C.paper, lineHeight: 1.4 } }, one.t),
+        React.createElement("button", { onClick: markDone, style: { marginTop: 12, padding: "8px 18px", borderRadius: 999, border: "none",
+                cursor: "pointer", background: C.amber, color: C.ink,
+                fontFamily: "Karla", fontWeight: 700, fontSize: 13 } }, "Done \u2192 into the Proof jar")));
 }
-
 // ————— HOME —————
 const SECTIONS = [
-  {
-    label: "When the mind is loud",
-    modes: [
-      { key: "breathe", title: "Breathe", desc: "Ripples pace you down", jp: "息" },
-      { key: "dump", title: "Release", desc: "Drop looping thoughts in the water", jp: "放" },
-      { key: "ground", title: "Ground", desc: "5-4-3-2-1 senses, back to the room", jp: "地" },
-      { key: "sound", title: "Sound", desc: "Deep water or rain, to cover the noise", jp: "音" },
-    ],
-  },
-  {
-    label: "When the body is loud",
-    modes: [
-      { key: "move", title: "Move", desc: "90-second discharge before stillness", jp: "体" },
-      { key: "fidget", title: "Fidget", desc: "A pond for restless hands", jp: "石" },
-    ],
-  },
-  {
-    label: "When the work won't start",
-    modes: [
-      { key: "triage", title: "Triage", desc: "Ten shouting tasks → one", jp: "選" },
-      { key: "unstick", title: "Unstick", desc: "A silly-small step + 2 minutes", jp: "始" },
-      { key: "focus", title: "Focus", desc: "A sprint you can see draining", jp: "集" },
-    ],
-  },
-  {
-    label: "When everything is heavy",
-    color: C.amber,
-    modes: [
-      { key: "ember", title: "Ember", desc: "Five tiny lights, each with a smaller version", jp: "灯" },
-      { key: "untangle", title: "Untangle", desc: "Park the looping thought", jp: "解" },
-      { key: "kind", title: "Kind voice", desc: "Answer the critic like you'd answer a friend", jp: "優" },
-      { key: "proof", title: "Proof", desc: "A jar of receipts your memory can't delete", jp: "証" },
-    ],
-  },
-  {
-    label: "The day's bookends",
-    color: C.storm,
-    modes: [
-      { key: "morning", title: "Morning", desc: "Surface slowly — breath, anchor, one ember", jp: "朝" },
-      { key: "night", title: "Night", desc: "Empty the loops, set tomorrow's one thing", jp: "夜" },
-    ],
-  },
-  {
-    label: "The pond remembers",
-    color: C.mist,
-    modes: [
-      { key: "pond", title: "Pond", desc: "Everything the water has kept for you", jp: "池" },
-    ],
-  },
+    {
+        label: "When the mind is loud",
+        modes: [
+            { key: "breathe", title: "Breathe", desc: "Ripples pace you down", jp: "息" },
+            { key: "dump", title: "Release", desc: "Drop looping thoughts in the water", jp: "放" },
+            { key: "ground", title: "Ground", desc: "5-4-3-2-1 senses, back to the room", jp: "地" },
+            { key: "sound", title: "Sound", desc: "Deep water or rain, to cover the noise", jp: "音" },
+        ],
+    },
+    {
+        label: "When the body is loud",
+        modes: [
+            { key: "move", title: "Move", desc: "90-second discharge before stillness", jp: "体" },
+            { key: "fidget", title: "Fidget", desc: "A pond for restless hands", jp: "石" },
+        ],
+    },
+    {
+        label: "When the work won't start",
+        modes: [
+            { key: "triage", title: "Triage", desc: "Ten shouting tasks → one", jp: "選" },
+            { key: "unstick", title: "Unstick", desc: "A silly-small step + 2 minutes", jp: "始" },
+            { key: "focus", title: "Focus", desc: "A sprint you can see draining", jp: "集" },
+        ],
+    },
+    {
+        label: "When everything is heavy",
+        color: C.amber,
+        modes: [
+            { key: "ember", title: "Ember", desc: "Five tiny lights, each with a smaller version", jp: "灯" },
+            { key: "untangle", title: "Untangle", desc: "Park the looping thought", jp: "解" },
+            { key: "kind", title: "Kind voice", desc: "Answer the critic like you'd answer a friend", jp: "優" },
+            { key: "proof", title: "Proof", desc: "A jar of receipts your memory can't delete", jp: "証" },
+        ],
+    },
+    {
+        label: "The day's bookends",
+        color: C.storm,
+        modes: [
+            { key: "morning", title: "Morning", desc: "Surface slowly — breath, anchor, one ember", jp: "朝" },
+            { key: "night", title: "Night", desc: "Empty the loops, set tomorrow's one thing", jp: "夜" },
+        ],
+    },
+    {
+        label: "The pond remembers",
+        color: C.mist,
+        modes: [
+            { key: "pond", title: "Pond", desc: "Everything the water has kept for you", jp: "池" },
+        ],
+    },
 ];
-
 function StillWater() {
-  const [mode, setMode] = useState(null);
-  const [breathePattern, setBreathePattern] = useState(null);
-  const [truth] = useState(() => TRUTHS[Math.floor(Math.random() * TRUTHS.length)]);
-
-  const go = (key, pattern) => {
-    setBreathePattern(pattern || null);
-    setMode(key);
-  };
-
-  return (
-    <div style={{ minHeight: "100vh",
-      background: `linear-gradient(175deg, ${C.ink} 0%, ${C.deep} 60%, #1B3247 100%)`,
-      padding: "40px 20px 60px" }}>
-      <style>{FONTS}</style>
-      <div style={{ maxWidth: 440, margin: "0 auto" }}>
-        <header style={{ textAlign: "center", marginBottom: mode ? 28 : 26 }}>
-          <h1 onClick={() => setMode(null)}
-            style={{ fontFamily: "'Shippori Mincho', serif", fontWeight: 600,
-              fontSize: mode ? 22 : 32, color: C.paper, margin: 0, letterSpacing: 1,
-              cursor: mode ? "pointer" : "default" }}>
-            Still Water
-          </h1>
-          {!mode && (
-            <p style={{ fontFamily: "Karla", fontSize: 13.5, color: C.mist, marginTop: 10,
-              fontStyle: "italic" }}>
-              “{truth}”
-            </p>
-          )}
-        </header>
-
-        {!mode && (
-          <>
-            <button onClick={() => setMode("spiral")}
-              style={{ display: "block", width: "100%", padding: "16px 20px", borderRadius: 16,
-                cursor: "pointer", marginBottom: 14, textAlign: "center",
-                border: `1px solid rgba(139,157,195,0.5)`,
-                background: "rgba(139,157,195,0.1)" }}>
-              <span style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 18, color: C.storm }}>
-                嵐 &nbsp;Spiraling? Start here.
-              </span>
-              <span style={{ display: "block", fontFamily: "Karla", fontSize: 12.5,
-                color: C.mist, marginTop: 4 }}>
-                90 seconds, three steps, I'll count — you follow.
-              </span>
-            </button>
-
-            <TodayBanner />
-            <WeatherRow />
-
-            {SECTIONS.map((sec) => (
-              <div key={sec.label} style={{ marginBottom: 26 }}>
-                <div style={{ fontFamily: "Karla", fontSize: 11.5, color: C.faint,
-                  letterSpacing: 2, textTransform: "uppercase", marginBottom: 10, paddingLeft: 4 }}>
-                  {sec.label}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {sec.modes.map((m) => (
-                    <button key={m.key} onClick={() => setMode(m.key)}
-                      style={{ display: "flex", alignItems: "center", gap: 16, textAlign: "left",
-                        padding: "16px 20px", borderRadius: 16, cursor: "pointer",
-                        border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.04)" }}>
-                      <span style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 27,
-                        color: sec.color || C.sea,
-                        lineHeight: 1 }}>{m.jp}</span>
-                      <span>
-                        <span style={{ display: "block", fontFamily: "'Shippori Mincho', serif",
-                          fontSize: 18, color: C.paper }}>{m.title}</span>
-                        <span style={{ display: "block", fontFamily: "Karla", fontSize: 13,
-                          color: C.mist, marginTop: 3 }}>{m.desc}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-
-        {mode === "breathe" && <Breathe onBack={() => setMode(null)} initialPattern={breathePattern} />}
-        {mode === "dump" && <Dump onBack={() => setMode(null)} />}
-        {mode === "ground" && <Ground onBack={() => setMode(null)} />}
-        {mode === "unstick" && <Unstick onBack={() => setMode(null)} />}
-        {mode === "move" && <Move onBack={() => setMode(null)} />}
-        {mode === "triage" && <Triage onBack={() => setMode(null)} />}
-        {mode === "fidget" && <Fidget onBack={() => setMode(null)} />}
-        {mode === "focus" && <Focus onBack={() => setMode(null)} />}
-        {mode === "ember" && <Ember onBack={() => setMode(null)} />}
-        {mode === "untangle" && <Untangle onBack={() => setMode(null)} />}
-        {mode === "proof" && <Proof onBack={() => setMode(null)} />}
-        {mode === "sound" && <Sound onBack={() => setMode(null)} />}
-        {mode === "spiral" && <Spiral onBack={() => setMode(null)} go={go} />}
-        {mode === "night" && <Night onBack={() => setMode(null)} go={go} />}
-        {mode === "kind" && <KindVoice onBack={() => setMode(null)} />}
-        {mode === "morning" && <Morning onBack={() => setMode(null)} />}
-        {mode === "pond" && <Pond onBack={() => setMode(null)} />}
-      </div>
-    </div>
-  );
+    const [mode, setMode] = useState(null);
+    const [breathePattern, setBreathePattern] = useState(null);
+    const [truth] = useState(() => TRUTHS[Math.floor(Math.random() * TRUTHS.length)]);
+    const go = (key, pattern) => {
+        setBreathePattern(pattern || null);
+        setMode(key);
+    };
+    return (React.createElement("div", { style: { minHeight: "100vh",
+            background: `linear-gradient(175deg, ${C.ink} 0%, ${C.deep} 60%, #1B3247 100%)`,
+            padding: "40px 20px 60px" } },
+        React.createElement("style", null, FONTS),
+        React.createElement("div", { style: { maxWidth: 440, margin: "0 auto" } },
+            React.createElement("header", { style: { textAlign: "center", marginBottom: mode ? 28 : 26 } },
+                React.createElement("h1", { onClick: () => setMode(null), style: { fontFamily: "'Shippori Mincho', serif", fontWeight: 600,
+                        fontSize: mode ? 22 : 32, color: C.paper, margin: 0, letterSpacing: 1,
+                        cursor: mode ? "pointer" : "default" } }, "Still Water"),
+                !mode && (React.createElement("p", { style: { fontFamily: "Karla", fontSize: 13.5, color: C.mist, marginTop: 10,
+                        fontStyle: "italic" } },
+                    "\u201C",
+                    truth,
+                    "\u201D"))),
+            !mode && (React.createElement(React.Fragment, null,
+                React.createElement("button", { onClick: () => setMode("spiral"), style: { display: "block", width: "100%", padding: "16px 20px", borderRadius: 16,
+                        cursor: "pointer", marginBottom: 14, textAlign: "center",
+                        border: `1px solid rgba(139,157,195,0.5)`,
+                        background: "rgba(139,157,195,0.1)" } },
+                    React.createElement("span", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 18, color: C.storm } }, "\u5D50 \u00A0Spiraling? Start here."),
+                    React.createElement("span", { style: { display: "block", fontFamily: "Karla", fontSize: 12.5,
+                            color: C.mist, marginTop: 4 } }, "90 seconds, three steps, I'll count \u2014 you follow.")),
+                React.createElement(TodayBanner, null),
+                React.createElement(WeatherRow, null),
+                SECTIONS.map((sec) => (React.createElement("div", { key: sec.label, style: { marginBottom: 26 } },
+                    React.createElement("div", { style: { fontFamily: "Karla", fontSize: 11.5, color: C.faint,
+                            letterSpacing: 2, textTransform: "uppercase", marginBottom: 10, paddingLeft: 4 } }, sec.label),
+                    React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, sec.modes.map((m) => (React.createElement("button", { key: m.key, onClick: () => setMode(m.key), style: { display: "flex", alignItems: "center", gap: 16, textAlign: "left",
+                            padding: "16px 20px", borderRadius: 16, cursor: "pointer",
+                            border: `1px solid ${C.faint}`, background: "rgba(233,238,242,0.04)" } },
+                        React.createElement("span", { style: { fontFamily: "'Shippori Mincho', serif", fontSize: 27,
+                                color: sec.color || C.sea,
+                                lineHeight: 1 } }, m.jp),
+                        React.createElement("span", null,
+                            React.createElement("span", { style: { display: "block", fontFamily: "'Shippori Mincho', serif",
+                                    fontSize: 18, color: C.paper } }, m.title),
+                            React.createElement("span", { style: { display: "block", fontFamily: "Karla", fontSize: 13,
+                                    color: C.mist, marginTop: 3 } }, m.desc))))))))))),
+            mode === "breathe" && React.createElement(Breathe, { onBack: () => setMode(null), initialPattern: breathePattern }),
+            mode === "dump" && React.createElement(Dump, { onBack: () => setMode(null) }),
+            mode === "ground" && React.createElement(Ground, { onBack: () => setMode(null) }),
+            mode === "unstick" && React.createElement(Unstick, { onBack: () => setMode(null) }),
+            mode === "move" && React.createElement(Move, { onBack: () => setMode(null) }),
+            mode === "triage" && React.createElement(Triage, { onBack: () => setMode(null) }),
+            mode === "fidget" && React.createElement(Fidget, { onBack: () => setMode(null) }),
+            mode === "focus" && React.createElement(Focus, { onBack: () => setMode(null) }),
+            mode === "ember" && React.createElement(Ember, { onBack: () => setMode(null) }),
+            mode === "untangle" && React.createElement(Untangle, { onBack: () => setMode(null) }),
+            mode === "proof" && React.createElement(Proof, { onBack: () => setMode(null) }),
+            mode === "sound" && React.createElement(Sound, { onBack: () => setMode(null) }),
+            mode === "spiral" && React.createElement(Spiral, { onBack: () => setMode(null), go: go }),
+            mode === "night" && React.createElement(Night, { onBack: () => setMode(null), go: go }),
+            mode === "kind" && React.createElement(KindVoice, { onBack: () => setMode(null) }),
+            mode === "morning" && React.createElement(Morning, { onBack: () => setMode(null) }),
+            mode === "pond" && React.createElement(Pond, { onBack: () => setMode(null) }))));
 }
-
-
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<StillWater />);
+root.render(React.createElement(StillWater, null));
 
   </script>
   <script>
     if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("./sw.js").catch(function () {});
       });
     }
   </script>
